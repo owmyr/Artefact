@@ -1,0 +1,33 @@
+# Environments and secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+ENV/
+
+# Python byte code and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# IDE and OS
+.DS_Store
+.idea/
+.vscode/
