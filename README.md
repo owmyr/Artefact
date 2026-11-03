@@ -22,8 +22,33 @@
 
 ---
 
+## ⚡ Quick Summary: Top Architectural Decisions in Plain English
+
+Here is the quick executive summary of the core technical choices powering this agent:
+
+1. **Code Does the Math, AI Does the Talking**
+   - We don’t let the LLM guess prices, calculate discounts, or check stock. Dedicated, deterministic Python tools query the database and calculate exact numbers (like the 5% PIX discount, tiered credit card installments up to 12x, and 7-day CDC return deadlines). The AI simply understands user intent, invokes the right tools, and explains the results.
+
+2. **Automatic 7-Model Backup Cascade**
+   - Free-tier AI quotas can easily run out during evaluation. If the primary model hits a rate limit (HTTP 429) or server error (HTTP 503), the system instantly switches to the next available model in a prioritized 7-model backup cascade (`gemini-3.8-flash` down to `gemini-2.5-flash-lite`) without restarting the turn or repeating already-executed searches.
+
+3. **Smart Database View for Catalog & Stock Invariants**
+   - We created a precomputed database view (`v_product_catalog`) that cleans the data before the AI touches it. It automatically deduplicates promotions, enforces that an item is only available if `status == 'active' AND stock_quantity > 0`, and calculates promotional prices side-by-side.
+
+4. **Whole Policy Sections Instead of Fractured Chunks**
+   - Standard RAG systems split PDF documents into arbitrary 300-word pieces, which often slices tables in half. Instead, we index all 10 store policy sections whole, ensuring shipping SLA matrices, installment tiers, and phone numbers remain intact.
+
+5. **Customer Privacy Lock (LGPD)**
+   - The agent never reveals order status or tracking codes with just an order number. The customer must also confirm their identity (full name, email, or phone) before any private order records are disclosed.
+
+6. **Automatic In-Stock Alternatives**
+   - If a customer asks for a product that is out of stock, discontinued, or in an empty category (such as flutes or violins), the agent doesn’t just say "no"—it automatically finds and suggests up to 3 similar instruments in the same category and price range that are actually in stock and ready to buy.
+
+---
+
 ## 📑 Table of Contents
 
+- [⚡ Quick Summary: Top Architectural Decisions](#-quick-summary-top-architectural-decisions-in-plain-english)
 1. [Project Overview & System Architecture](#1-project-overview--system-architecture)
 2. [Environment Setup & Execution Instructions](#2-environment-setup--execution-instructions)
    - [Option A: Instant Cloud Evaluation (Recommended)](#option-a-instant-cloud-evaluation-recommended--no-local-setup)
