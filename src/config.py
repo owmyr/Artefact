@@ -36,13 +36,15 @@ load_dotenv(dotenv_path=BASE_DIR / ".env")
 # Google Gemini API key
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
-# Prioritized Free-Tier Gemini Model Fallback Cascade (per AGENTS.md invariant)
+# Prioritized Free-Tier Gemini Model Fallback Cascade optimized by model capability
 DEFAULT_MODEL_CASCADE: list[str] = [
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
+    "gemini-3-flash-preview",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
-    "gemini-2.5-pro",
     "gemini-2.5-flash-lite",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
 ]
 
 _raw_models: str | None = os.getenv("GEMINI_MODELS")
@@ -52,3 +54,29 @@ if _raw_models and _raw_models.strip():
     ]
 else:
     GEMINI_MODEL_CASCADE = list(DEFAULT_MODEL_CASCADE)
+
+
+class Settings:
+    """Typed namespace proxy exposing module-level configuration attributes.
+
+    Why: Allows both `from src import config as settings` and `from src.config import settings`
+    patterns across the codebase without duplicating environment resolution.
+    """
+
+    BASE_DIR: Path = BASE_DIR
+    DATA_DIR: Path = DATA_DIR
+    DB_PATH: Path = DB_PATH
+    CATEGORIES_CSV: Path = CATEGORIES_CSV
+    CUSTOMERS_CSV: Path = CUSTOMERS_CSV
+    ORDERS_CSV: Path = ORDERS_CSV
+    ORDER_ITEMS_CSV: Path = ORDER_ITEMS_CSV
+    PRODUCTS_CSV: Path = PRODUCTS_CSV
+    PROMOTIONS_CSV: Path = PROMOTIONS_CSV
+    POLICIES_PDF: Path = POLICIES_PDF
+    GEMINI_API_KEY: str = GEMINI_API_KEY
+    DEFAULT_MODEL_CASCADE: list[str] = DEFAULT_MODEL_CASCADE
+    GEMINI_MODEL_CASCADE: list[str] = GEMINI_MODEL_CASCADE
+
+
+settings = Settings()
+
