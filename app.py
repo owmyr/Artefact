@@ -160,7 +160,7 @@ def _reconstruct_ui_messages_from_db(session_id: str) -> list[dict[str, Any]]:
                     {
                         "role": "assistant",
                         "content": "\n".join(model_texts),
-                        "model_used": model_used or "gemini-2.5-flash",
+                        "model_used": model_used or "gemini-3.8-flash",
                         "tool_calls": list(pending_tool_calls),
                         "fallback_events": [],
                     }

@@ -47,7 +47,7 @@ Maintain this exact project layout:
 ## 3. LLM & Free-Tier Multi-Model Fallback Invariants
 - Use the official **`google-genai` SDK** (`from google import genai` and `from google.genai import types, errors`). Never use the deprecated `google-generativeai` package.
 - **Prioritized Model Cascade**:
-  `["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"]`
+  `["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]`
 - **Manual ReAct Loop Required**: Disable SDK automatic function calling (`automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)`). Every individual `generate_content` call inside the ReAct loop must pass through `GeminiFallbackRouter.generate_with_fallback()` so a `429 RESOURCE_EXHAUSTED` or `503 UNAVAILABLE` mid-turn switches seamlessly to the next model without re-running already-executed tools.
 - **Cross-Model History Sanitization**: When appending model function calls to conversation history, construct clean `types.Part.from_function_call(name=..., args=...)` and `types.Part.from_function_response(name=..., response=...)` objects rather than passing raw model-specific thinking parts that could fail if a fallback switches model families mid-turn.
 

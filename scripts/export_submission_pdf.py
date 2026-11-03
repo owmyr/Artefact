@@ -21,6 +21,7 @@ OUTPUT_PDF_NAME: str = (
 )
 OUTPUT_PDF_PATH: Path = BASE_DIR / OUTPUT_PDF_NAME
 GITHUB_REPO_URL: str = "https://github.com/owmyr/Artefact"
+LIVE_DEMO_URL: str = "https://olmir-artefact.streamlit.app/"
 
 # Mapping of non-Latin-1 Unicode punctuation, arrows, and emojis to clean Latin-1 equivalents
 _UNICODE_REPLACEMENTS: dict[str, str] = {
@@ -244,16 +245,26 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
             new_y="NEXT",
         )
 
-    # Prominent Clickable GitHub Repository Link
-    pdf.set_font("Helvetica", "B", 10.5)
+    # Prominent Clickable GitHub Repository & Live Demo Links
+    pdf.set_font("Helvetica", "B", 10.2)
     pdf.set_text_color(15, 82, 186)
     pdf.cell(
         0,
-        8,
+        6.5,
         sanitize_latin1(f"  Public GitHub Repository: {GITHUB_REPO_URL}  (Click to Open)"),
-        border="LRB",
+        border="LR",
         fill=True,
         link=GITHUB_REPO_URL,
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+    pdf.cell(
+        0,
+        7,
+        sanitize_latin1(f"  Live Interactive Cloud Demo: {LIVE_DEMO_URL}  (Click to Test Online)"),
+        border="LRB",
+        fill=True,
+        link=LIVE_DEMO_URL,
         new_x="LMARGIN",
         new_y="NEXT",
     )
@@ -295,11 +306,11 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
     pdf.body_paragraph(
         "To guarantee 100% uptime when evaluated with a Google AI Studio Free-Tier API key (where RPM "
         "and RPD quotas are enforced independently per model ID), `GeminiFallbackRouter` routes every "
-        "ReAct step across a prioritized 5-model cascade:"
+        "ReAct step across a prioritized 7-model capability cascade:"
     )
     pdf.code_block(
-        "1. gemini-2.5-flash  ->  2. gemini-2.5-pro  ->  3. gemini-2.5-flash-lite  ->  "
-        "4. gemini-2.0-flash  ->  5. gemini-2.0-flash-lite"
+        "1. gemini-3.8-flash -> 2. gemini-3.6-flash -> 3. gemini-3-flash-preview ->\n"
+        "4. gemini-3.5-flash-lite -> 5. gemini-3.1-flash-lite -> 6. gemini-2.5-flash -> 7. gemini-2.5-flash-lite"
     )
     pdf.bullet_item(
         "Cooldown State Machine",
@@ -308,8 +319,8 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
     )
     pdf.bullet_item(
         "Mid-Turn Failover & History Sanitization",
-        "If `gemini-2.5-flash` executes a tool on Iteration 1 and hits HTTP 429 on Iteration 2, "
-        "`gemini-2.5-pro` synthesizes the final response from clean `Part.from_function_call` / "
+        "If the primary model executes a tool on Iteration 1 and hits HTTP 429 on Iteration 2, "
+        "the next model synthesizes the final response from clean `Part.from_function_call` / "
         "`Part.from_function_response` objects without re-running the already-executed tool.",
     )
 
@@ -352,15 +363,20 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
     )
 
     # Section 4: Environment Setup & Execution Instructions
-    pdf.section_banner("4. QUICK SETUP & EXECUTION COMMANDS")
+    pdf.section_banner("4. QUICK SETUP, LIVE DEMO & AI ENGINEERING WORKFLOW")
+    pdf.bullet_item(
+        "Adversarial Multi-Model AI Workflow",
+        "Every architectural plan and prompt was reviewed by Claude Sonnet, implemented via Google Antigravity, "
+        "and adversarially audited (Red Team feedback & optimization) by GLM 5.3 through OpenCode.",
+    )
     pdf.code_block(
+        "# Live Cloud Demo (Zero Setup): https://olmir-artefact.streamlit.app/\n"
         "git clone https://github.com/owmyr/Artefact.git && cd Artefact\n"
-        "python3 -m venv .venv && source .venv/bin/activate\n"
-        "pip install -r requirements.txt\n"
+        "python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt\n"
         "cp .env.example .env   # Set GEMINI_API_KEY=your_google_ai_studio_key\n"
         "pytest -v              # Run all 35 unit & fallback tests\n"
         "streamlit run app.py   # Launch Web Chat UI with Telemetry Sidebar\n"
-        "python cli.py          # Launch Interactive Rich Terminal CLI"
+        "python cli.py          # (Optional) Launch Interactive Rich Terminal CLI"
     )
 
 

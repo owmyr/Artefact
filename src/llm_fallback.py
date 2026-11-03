@@ -1,7 +1,7 @@
 """Gemini Free-Tier Multi-Model Fallback Router for Empório da Música.
 
 Why: Guarantees high availability on Google AI Studio Free Tier quotas by
-routing requests across a prioritized cascade of 5 Gemini models. Automatically
+routing requests across a prioritized cascade of 7 Gemini models. Automatically
 tracks per-model cooldowns (60s for RPM/TPM limits, 3600s for daily RPD exhaustion,
 30s after transient server overload) and permanently disables unsupported models,
 ensuring seamless mid-turn failover without losing ReAct tool-execution progress.

@@ -1,14 +1,22 @@
 # 🎸 Empório da Música — AI Customer Support Agent
 
+[![Live Demo - Streamlit](https://img.shields.io/badge/🚀%20Live%20Demo-Streamlit%20Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://olmir-artefact.streamlit.app/)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-owmyr%2FArtefact-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/owmyr/Artefact)
+
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Google GenAI SDK](https://img.shields.io/badge/Google%20GenAI%20SDK-google--genai-4285F4?logo=google&logoColor=white)](https://pypi.org/project/google-genai/)
 [![SQLite3](https://img.shields.io/badge/Database-SQLite3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://olmir-artefact.streamlit.app/)
 [![Tests](https://img.shields.io/badge/Tests-pytest%2035%20passed%20(100%25)-brightgreen?logo=pytest)](https://docs.pytest.org/)
 
 > **Technical Case Assessment — AI Engineer (Full-Stack para Aplicações com IA Generativa)**  
 > **Candidate:** Olmir Stocker Neto  
 > **Repository:** [`https://github.com/owmyr/Artefact`](https://github.com/owmyr/Artefact)
+
+> [!TIP]
+> ### 🌐 Live Interactive Demo (Zero Local Setup Required)
+> You can test the agent immediately in your browser via **Streamlit Community Cloud** (pre-configured with an active API key, SQLite session memory, 1-click evaluator quick prompts, and real-time model/tool telemetry):  
+> 👉 **[https://olmir-artefact.streamlit.app/](https://olmir-artefact.streamlit.app/)**
 
 > 🇧🇷 **Nota de Idioma / Language Note:** This documentation is structured primarily in **English** to satisfy the technical assessment instructions, followed by a complete **Brazilian Portuguese (`pt-BR`) Quick-Start & Executive Summary** ([jump to Portuguese section](#-resumo-executivo-e-guia-rápido-pt-br)). The agent itself interacts exclusively in natural Brazilian Portuguese (`pt-BR`).
 
@@ -18,13 +26,16 @@
 
 1. [Project Overview & System Architecture](#1-project-overview--system-architecture)
 2. [Environment Setup & Execution Instructions](#2-environment-setup--execution-instructions)
+   - [Option A: Instant Cloud Evaluation (Recommended)](#option-a-instant-cloud-evaluation-recommended--no-local-setup)
+   - [Option B: Local Setup & Streamlit Web UI](#option-b-local-environment-setup--streamlit-web-ui)
+   - [Option C (Optional): Interactive Rich Terminal CLI (`cli.py`)](#option-c-optional-interactive-rich-terminal-cli-clipy)
 3. [Justification of Technical Decisions](#3-justification-of-technical-decisions)
    - [3.1 Agent Framework & Approach (Deterministic ReAct vs. Naive RAG vs. Text-to-SQL)](#31-agent-framework--approach-deterministic-react-vs-naive-rag-vs-text-to-sql)
    - [3.2 LLM Provider & Multi-Model Free-Tier Fallback Router (`src/llm_fallback.py`)](#32-llm-provider--multi-model-free-tier-fallback-router-srcllm_fallbackpy)
    - [3.3 Policy Retrieval Strategy (`src/policies_kb.py`)](#33-policy-retrieval-strategy-srcpolicies_kbpy)
    - [3.4 Data Treatment & Documented Assumptions (EDA Findings)](#34-data-treatment--documented-assumptions-eda-findings)
 4. [Known Limitations & Production Roadmap (With More Time)](#4-known-limitations--production-roadmap-with-more-time)
-5. [Use of AI Coding Assistants (Engineering Workflow)](#5-use-of-ai-coding-assistants-engineering-workflow)
+5. [Use of AI Coding Assistants (Adversarial Multi-Model Engineering Workflow)](#5-use-of-ai-coding-assistants-adversarial-multi-model-engineering-workflow)
 6. [🇧🇷 Resumo Executivo e Guia Rápido (pt-BR)](#-resumo-executivo-e-guia-rápido-pt-br)
 
 ---
@@ -44,8 +55,9 @@ The agent assists beginner, intermediate, and professional musicians in **Brazil
 ```mermaid
 flowchart TB
     subgraph Interfaces["User Interfaces"]
-        UI["Streamlit Web UI (app.py)<br/>Chat + Live Telemetry Sidebar"]
-        CLI["Rich Terminal CLI (cli.py)<br/>Interactive Chat + /models & /new"]
+        CLOUD["Live Cloud Web UI<br/>(olmir-artefact.streamlit.app)"]
+        UI["Local Streamlit Web UI (app.py)<br/>Chat + Live Telemetry Sidebar"]
+        CLI["Optional Rich Terminal CLI (cli.py)<br/>Interactive Chat + /models & /new"]
         GEN["Transcript Generator<br/>(scripts/generate_examples.py)"]
     end
 
@@ -55,12 +67,14 @@ flowchart TB
     end
 
     subgraph RouterLayer["Resilience & LLM Layer (src/llm_fallback.py)"]
-        ROUTER["GeminiFallbackRouter<br/>Cooldown-Aware Cascade Rotation<br/>HTTP 429 (60s/3600s) | HTTP 503 (Retry+30s) | HTTP 404 (Disable)"]
-        M1["#1 gemini-2.5-flash"]
-        M2["#2 gemini-2.5-pro"]
-        M3["#3 gemini-2.5-flash-lite"]
-        M4["#4 gemini-2.0-flash"]
-        M5["#5 gemini-2.0-flash-lite"]
+        ROUTER["GeminiFallbackRouter<br/>Cooldown-Aware 7-Model Cascade Rotation<br/>HTTP 429 (60s/3600s) | HTTP 503 (Retry+30s) | HTTP 404 (Disable)"]
+        M1["#1 gemini-3.8-flash"]
+        M2["#2 gemini-3.6-flash"]
+        M3["#3 gemini-3-flash-preview"]
+        M4["#4 gemini-3.5-flash-lite"]
+        M5["#5 gemini-3.1-flash-lite"]
+        M6["#6 gemini-2.5-flash"]
+        M7["#7 gemini-2.5-flash-lite"]
     end
 
     subgraph ToolLayer["Deterministic Tool Layer (src/tools.py - Pydantic Validated)"]
@@ -75,6 +89,7 @@ flowchart TB
         KB["Structured Markdown Policy KB<br/>(politicas_da_loja.pdf -> Sections 1–10<br/>Preserved SLA & Installment Tables)"]
     end
 
+    CLOUD --> AGENT
     UI --> AGENT
     CLI --> AGENT
     GEN --> AGENT
@@ -85,6 +100,8 @@ flowchart TB
     M2 -. "429 / 503" .-> M3
     M3 -. "429 / 503" .-> M4
     M4 -. "429 / 503" .-> M5
+    M5 -. "429 / 503" .-> M6
+    M6 -. "429 / 503" .-> M7
     AGENT --> T1 & T2 & T3 & T4
     T1 & T3 --> DB
     T2 --> DB
@@ -98,9 +115,9 @@ flowchart TB
 ├── AGENTS.md                     # Architectural specification & business logic invariants
 ├── README.md                     # Project documentation (EN primary + PT-BR quick-start)
 ├── requirements.txt              # Pinned Python 3.11+ dependencies
-├── .env.example                  # Template for GEMINI_API_KEY and model cascade
+├── .env.example                  # Template for GEMINI_API_KEY and 7-model cascade
 ├── app.py                        # Streamlit Chat UI with real-time telemetry sidebar
-├── cli.py                        # Rich interactive terminal chat interface
+├── cli.py                        # Optional Rich interactive terminal chat interface
 ├── data/                         # Raw store dataset (6 CSVs + 8-page PDF manual)
 │   ├── categories.csv
 │   ├── customers.csv
@@ -111,7 +128,7 @@ flowchart TB
 │   └── politicas_da_loja.pdf
 ├── src/
 │   ├── __init__.py
-│   ├── config.py                 # Environment configuration & Gemini model cascade
+│   ├── config.py                 # Environment configuration & Gemini 7-model cascade
 │   ├── database.py               # SQLite schema ingestion & v_product_catalog view
 │   ├── policies_kb.py            # Section-preserved Markdown policy knowledge base
 │   ├── tools.py                  # Deterministic Pydantic-typed agent tools
@@ -138,11 +155,25 @@ flowchart TB
 
 ## 2. Environment Setup & Execution Instructions
 
-### Prerequisites
-- **Python 3.11+**
-- A free **Google AI Studio API Key** (`GEMINI_API_KEY`) — obtainable at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+### Option A: Instant Cloud Evaluation *(Recommended — No Local Setup)*
 
-### Step 1: Clone the Repository & Create a Virtual Environment
+The fastest way to evaluate the agent is via the hosted **Streamlit Community Cloud** instance, which already has an active `GEMINI_API_KEY` configured in secure secrets:
+
+- **URL:** **[https://olmir-artefact.streamlit.app/](https://olmir-artefact.streamlit.app/)**
+- **Features Available Online:**
+  - **Interactive Multi-Turn Chat (`pt-BR`):** Full conversation memory backed by SQLite.
+  - **5 Evaluator Quick Prompts:** One-click buttons in the left sidebar covering the assessment scenarios (Violões <= R$ 1,000, Takamine GD20 expired promo, Return Policy & LGPD, Store Address/Contacts/Freight, and Out-of-Scope Accessories refusal).
+  - **Live Telemetry Sidebar & Expanders:** Real-time monitoring of the 7-model Gemini cascade (`🟢 Pronto`, `🟡 Cooldown`, `🔴 Desativado`) and expandable JSON inspection of every `tool_call` and deterministic output.
+
+---
+
+### Option B: Local Environment Setup & Streamlit Web UI
+
+#### Prerequisites
+- **Python 3.11+**
+- A **Google AI Studio API Key** (`GEMINI_API_KEY`) — obtainable for free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+
+#### Step 1: Clone the Repository & Create a Virtual Environment
 
 ```bash
 git clone https://github.com/owmyr/Artefact.git
@@ -154,7 +185,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### Step 2: Configure Environment Variables (`.env`)
+#### Step 2: Configure Environment Variables (`.env`)
 
 Copy the provided `.env.example` template to `.env` and insert your Google AI Studio API key:
 
@@ -168,13 +199,13 @@ Edit `.env`:
 # Google AI Studio API Key
 GEMINI_API_KEY=your_google_ai_studio_key_here
 
-# Prioritized Gemini Model Fallback Cascade (comma-separated)
-GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-pro,gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite
+# Prioritized Gemini Model Fallback Cascade (comma-separated, optimized by capability)
+GEMINI_MODELS=gemini-3.8-flash,gemini-3.6-flash,gemini-3-flash-preview,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-2.5-flash,gemini-2.5-flash-lite
 ```
 
 > **Note:** The SQLite database (`emporio.db`) is automatically initialized and seeded from `data/*.csv` on first import or execution if it does not yet exist. You can also force a clean rebuild at any time via `python -m src.database`.
 
-### Step 3: Run the Automated Test Suite (`pytest`)
+#### Step 3: Run the Automated Test Suite (`pytest`)
 
 All 35 unit tests validate the SQLite views, policy knowledge base extraction, edge-case catalog and order tools, and simulated HTTP `429`/`503` model fallback rotations (no live API key required for unit tests):
 
@@ -182,29 +213,40 @@ All 35 unit tests validate the SQLite views, policy knowledge base extraction, e
 pytest -v
 ```
 
-### Step 4: Launch the Streamlit Web UI (`app.py`)
+#### Step 4: Launch the Local Streamlit Web UI (`app.py`)
 
 ```bash
 streamlit run app.py
 ```
 
-The Streamlit interface opens in your browser and provides:
-- **Interactive Chat:** Full multi-turn conversation in Brazilian Portuguese.
-- **Live Telemetry Sidebar:** Displays the active Gemini model cascade health (`🟢 Pronto`, `🟡 Cooldown`, `🔴 Desativado`), session switcher (`session_id` backed by SQLite), and **5 One-Click Evaluator Quick Prompts**.
-- **Per-Turn Tool Audit Expanders:** Every assistant response includes an expandable panel showing the exact `model_used`, `tool_calls` arguments, deterministic JSON outputs, and any `fallback_events`.
+---
 
-### Step 5: Launch the Interactive Terminal CLI (`cli.py`)
+### Option C *(Optional)*: Interactive Rich Terminal CLI (`cli.py`)
+
+If you prefer testing the agent directly inside a terminal window instead of a browser, the project includes an **optional** interactive CLI built with `rich` (`cli.py`):
+
+#### 1. Ensure your virtual environment is active and `.env` is configured
+Make sure you have completed **Steps 1 & 2** above so `GEMINI_API_KEY` is set in `.env` and your `.venv` is activated.
+
+#### 2. Launch the Terminal Interface
 
 ```bash
+# Start with the default SQLite session ("cli-default"):
 python cli.py
+
+# Or specify a custom SQLite session ID to resume or isolate a conversation:
+python cli.py --session-id avaliacao-artefact
 ```
 
-- Supports rich Markdown panels, real-time tool execution badges, and slash commands:
-  - `/models` — Displays a live Rich table of all 5 Gemini models, their priority, and remaining cooldown seconds.
-  - `/new` — Starts a fresh SQLite conversation session.
-  - `/exit` — Exits the terminal client.
+#### 3. Built-in Interactive CLI Commands
+While inside the terminal chat prompt (`🧑‍🎤 Você >`), you can type any message in Portuguese or use the following slash commands:
+- `/models` — Renders a live Rich table displaying all 7 Gemini models in the fallback cascade, their priority order, current state (`🟢 PRONTO`, `🟡 COOLDOWN`, `🔴 DESATIVADO`), remaining cooldown seconds, and which model served the last turn.
+- `/new` — Clears and rotates to a fresh SQLite conversation session (`session_id`).
+- `/exit` *(or `/quit`, `sair`, `Ctrl+C`)* — Cleanly exits the terminal client.
 
-### Step 6: Regenerate the 5 Multi-Turn Example Transcripts & Submission PDF
+---
+
+### Step 5 *(Optional)*: Regenerate the 5 Multi-Turn Example Transcripts & Submission PDF
 
 ```bash
 # Regenerate examples/01_*.md through examples/05_*.md
@@ -236,23 +278,25 @@ When designing an AI customer service agent over structured tabular data (`produ
 
 Evaluators testing the repository with a standard **Google AI Studio Free-Tier API key** are subject to strict per-model rate limits (e.g., 5–15 Requests Per Minute [RPM] and daily RPD quotas). Crucially, Google AI Studio tracks quotas **independently per model ID**.
 
-To guarantee uninterrupted execution during multi-turn conversations and batch transcript generation, we engineered `GeminiFallbackRouter` using the official **`google-genai` SDK** (`from google import genai`) across a prioritized 5-model cascade:
+To guarantee uninterrupted execution during multi-turn conversations and batch transcript generation, we engineered `GeminiFallbackRouter` using the official **`google-genai` SDK** (`from google import genai`) across a prioritized **7-model capability cascade** (`DEFAULT_MODEL_CASCADE` in `src/config.py`):
 
-1. `gemini-2.5-flash` *(Primary: optimal balance of low latency, tool-calling accuracy, and reasoning)*
-2. `gemini-2.5-pro` *(First fallback: high-capacity reasoning model)*
-3. `gemini-2.5-flash-lite` *(Second fallback: high-throughput, low-latency 2.5 model)*
-4. `gemini-2.0-flash` *(Third fallback: separate 2.0 generation quota pool)*
-5. `gemini-2.0-flash-lite` *(Fourth fallback: ultra-lightweight safety net)*
+1. `gemini-3.8-flash` *(Primary: highest-capability frontier Flash model for fast, accurate tool calling and `pt-BR` synthesis)*
+2. `gemini-3.6-flash` *(First fallback: high-capability generation 3.6 Flash model)*
+3. `gemini-3-flash-preview` *(Second fallback: Gemini 3 Flash preview quota pool)*
+4. `gemini-3.5-flash-lite` *(Third fallback: high-throughput, low-latency 3.5 Flash-Lite model)*
+5. `gemini-3.1-flash-lite` *(Fourth fallback: separate 3.1 Flash-Lite quota pool)*
+6. `gemini-2.5-flash` *(Fifth fallback: battle-tested 2.5 Flash model)*
+7. `gemini-2.5-flash-lite` *(Sixth fallback: ultra-lightweight 2.5 safety net)*
 
 #### Why Manual ReAct Function Calling & History Sanitization Are Required
-- **Disabling SDK Automatic Function Calling:** In the `google-genai` SDK, `automatic_function_calling` binds the entire multi-step tool loop to a single model call. If `gemini-2.5-flash` executes a tool on Iteration 1 and then hits `HTTP 429 RESOURCE_EXHAUSTED` on Iteration 2 while synthesizing the response, automatic function calling fails the entire turn or re-executes the tool from scratch.
+- **Disabling SDK Automatic Function Calling:** In the `google-genai` SDK, `automatic_function_calling` binds the entire multi-step tool loop to a single model call. If the primary model executes a tool on Iteration 1 and then hits `HTTP 429 RESOURCE_EXHAUSTED` on Iteration 2 while synthesizing the response, automatic function calling fails the entire turn or re-executes the tool from scratch.
 - **Seamless Mid-Turn Failover:** By setting `automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)` in `EmporioAgent`, every individual `generate_content` step inside the ReAct loop passes through `GeminiFallbackRouter.generate_with_fallback()`.
 - **Cooldown State Machine:**
   - **HTTP `429` (RPM/TPM Rate Limit):** Marks the model on a **60-second cooldown** (`monotonic() + 60.0`) and immediately rotates to the next available model.
   - **HTTP `429` (Daily Quota / `PerDay` / `RPD`):** Detects daily exhaustion indicators and places the model on a **3600-second cooldown** so subsequent turns skip it immediately.
   - **HTTP `503` / `500` / `504` (Transient Server Overload):** Sleeps `1.5s`, retries the same model once, and if still overloaded, applies a **30-second cooldown** and rotates to the next model.
-  - **HTTP `404` / `400` (Unsupported/Deprecated Model):** Permanently adds the model to `disabled_models` for the session lifetime.
-- **Cross-Model History Sanitization:** Models in the `gemini-2.5-*` family emit internal `thought` / `thought_signature` parts alongside function calls, which can trigger schema validation errors if replayed into `gemini-2.0-*` models during a mid-turn fallback. `EmporioAgent` strips raw thinking parts and reconstructs clean `types.Part.from_function_call(name=..., args=...)` and `types.Part.from_function_response(name=..., response=...)` objects before appending to history and persisting to SQLite.
+  - **HTTP `404` / `400` (Unsupported/Deprecated Model):** Permanently adds the model to `disabled_models` for the session lifetime (e.g., if a preview model ID is unavailable for a specific API key tier, the router seamlessly steps down the cascade).
+- **Cross-Model History Sanitization (`thought_signature` Continuity):** Models across the Gemini 3.x and 2.5 families emit internal `thought` parts and `thought_signature` tokens alongside function calls. `EmporioAgent` strips raw thinking text blocks while preserving `thought_signature` tokens on reconstructed `types.Part.from_function_call(name=..., args=...)` and `types.Part.from_function_response(name=..., response=...)` objects before appending to history and persisting to SQLite.
 
 ### 3.3 Policy Retrieval Strategy (`src/policies_kb.py`)
 
@@ -308,7 +352,7 @@ When a user searches for saxophones, flutes, trumpets, violins, or cellos, `sear
 
 ## 4. Known Limitations & Production Roadmap (With More Time)
 
-While this implementation is fully self-contained and deterministic for local evaluation, transitioning to a high-concurrency production deployment for Empório da Música would follow four engineering milestones:
+While this implementation is fully self-contained and deterministic for local and cloud evaluation, transitioning to a high-concurrency production deployment for Empório da Música would follow four engineering milestones:
 
 1. **WhatsApp Business Cloud API & Distributed State (Redis + PostgreSQL):**
    - Replace the local SQLite `chat_history` store with **PostgreSQL** for durable multi-instance persistence and **Redis** distributed locks (`SETNX`) keyed by the customer's WhatsApp phone number (`wa_id`) to handle rapid consecutive messages (message debouncing) via Meta Cloud API webhooks.
@@ -321,39 +365,61 @@ While this implementation is fully self-contained and deterministic for local ev
 
 ---
 
-## 5. Use of AI Coding Assistants (Engineering Workflow)
+## 5. Use of AI Coding Assistants (Adversarial Multi-Model Engineering Workflow)
 
-In alignment with the evaluation criteria regarding transparent and disciplined use of AI coding assistants, **Google Antigravity** was used as a pair-programming accelerator under a strict **Specification-Driven & Test-Driven Development (TDD)** workflow:
+In alignment with the evaluation criteria regarding transparent and disciplined use of AI coding assistants, this project employed a structured **Multi-Agent / Multi-Model Adversarial Review Workflow** combining **Google Antigravity**, **Claude Sonnet**, and **GLM 5.3 via OpenCode** under strict **Specification-Driven & Test-Driven Development (TDD)** governance:
 
-1. **Upfront Exploratory Data Analysis (EDA) Before Code Generation:**
-   - Before writing any application code, all 6 CSV tables and the 8-page `politicas_da_loja.pdf` manual were inspected programmatically. Every data anomaly (`product_id` 96, 113, 130, 136; empty categories 6, 7, 8; duplicate/inactive promotions; dual phone numbers; tiered installment minimums) was cataloged first.
-2. **Root Governance Specification (`AGENTS.md`):**
-   - All architectural constraints, SDK invariants (`google-genai` manual ReAct loop, 5-model cascade, cross-model history sanitization), and business rules were codified into `AGENTS.md`. This prevented context drift and ensured every module adhered to a single source of truth.
-3. **5-Stage Incremental Milestone Execution with `pytest` Gates:**
+```mermaid
+flowchart LR
+    EDA["1. Upfront EDA &<br/>Spec (AGENTS.md)"] --> PLAN["2. Plan & Prompt<br/>Critique (Claude Sonnet)"]
+    PLAN --> IMPL["3. Milestone Implementation<br/>(Google Antigravity)"]
+    IMPL --> ADV["4. Adversarial Code Review<br/>(GLM 5.3 via OpenCode)"]
+    ADV --> TEST["5. Pytest Gate<br/>(35/35 Passed)"]
+```
+
+1. **Upfront Exploratory Data Analysis (EDA) & Governance Specification (`AGENTS.md`):**
+   - Before writing application code, all 6 CSV tables and the 8-page `politicas_da_loja.pdf` manual were inspected programmatically to catalog every hidden anomaly (`product_id` 96, 113, 130, 136; empty categories 6, 7, 8; duplicate/inactive promotions; dual phone numbers; tiered installment minimums). All business invariants were codified into `AGENTS.md` as a single source of truth.
+2. **Architectural Planning & Prompt Review with Claude Sonnet:**
+   - **Every architectural plan, milestone specification, and system/agent prompt was reviewed and refined by Claude Sonnet** prior to execution. Acting as a design critic, Claude Sonnet stress-tested prompt instructions, edge-case coverage, and tool schemas to eliminate ambiguity and prevent LLM hallucinations before implementation began.
+3. **Code Implementation with Google Antigravity:**
+   - **Google Antigravity** was used as the primary pair-programming agent to implement the modular Python codebase (`src/`), SQLite views, Pydantic tools, multi-model fallback router, Streamlit UI, and unit test suites across 5 incremental milestones.
+4. **Adversarial Implementation Review with GLM 5.3 via OpenCode:**
+   - **Every completed code milestone and implementation was audited by GLM 5.3 through OpenCode**, acting as an independent **adversarial reviewer (Red Team)** and feedback loop. GLM 5.3 inspected diffs for subtle SQL join/deduplication bugs, cross-model `thought_signature` serialization edge cases, LGPD verification bypasses, and strict compliance with the assessment rubric.
+5. **5-Stage Incremental Milestone Execution with `pytest` Gates:**
    - **Milestone 1:** Project scaffolding, configuration (`src/config.py`), SQLite ingestion + `v_product_catalog` view (`src/database.py`), and section-preserved Policy KB (`src/policies_kb.py`) -> verified via `tests/test_database.py` and `tests/test_policies.py`.
    - **Milestone 2:** Deterministic Pydantic-typed tools (`src/tools.py`) covering catalog search, installment math, LGPD order verification, and policy lookup -> verified via `tests/test_tools.py`.
    - **Milestone 3:** Multi-model fallback router (`src/llm_fallback.py`), system prompt (`src/prompts.py`), and stateful ReAct agent (`src/agent.py`) -> verified via mocked HTTP `429`/`503` mid-turn failover tests in `tests/test_fallback.py`.
-   - **Milestone 4:** Streamlit Web UI (`app.py`), Rich CLI (`cli.py`), and automated generation of the 5 multi-turn conversation logs (`examples/01_*.md` – `05_*.md`).
+   - **Milestone 4:** Streamlit Web UI (`app.py`), optional Rich CLI (`cli.py`), and automated generation of the 5 multi-turn conversation logs (`examples/01_*.md` – `05_*.md`).
    - **Milestone 5:** Comprehensive bilingual documentation (`README.md`) and automated PDF compilation (`scripts/export_submission_pdf.py`).
 
 ---
 
 ## 🇧🇷 Resumo Executivo e Guia Rápido (pt-BR)
 
+> 🚀 **Demo Online Interativa (Streamlit Cloud):**  
+> Teste o agente agora mesmo no navegador (já configurado com chave de API ativa, memória em SQLite, botões de *Quick Prompts* para avaliação rápida e telemetria em tempo real):  
+> 👉 **[https://olmir-artefact.streamlit.app/](https://olmir-artefact.streamlit.app/)**
+
 ### Sobre o Projeto
 Este repositório apresenta o **Agente Inteligente de Atendimento ao Cliente** desenvolvido para a **Empório da Música** (Campo Grande/MS). O sistema utiliza uma arquitetura **ReAct (Reasoning + Acting)** determinística sobre **SQLite** e o SDK oficial **`google-genai`**, garantindo **zero alucinação** em preços, estoques, cálculos de parcelamento, prazos legais do CDC (arrependimento, troca e garantia) e conformidade com a **LGPD**.
 
 ### Principais Diferenciais Técnicos
-1. **Roteador Multi-Modelo com Fallback Automático (`GeminiFallbackRouter`):** Rotaciona chamadas automaticamente entre 5 modelos (`gemini-2.5-flash` -> `gemini-2.5-pro` -> `gemini-2.5-flash-lite` -> `gemini-2.0-flash` -> `gemini-2.0-flash-lite`) ao detectar erros `HTTP 429` (limite de requisições da camada gratuita) ou `HTTP 503` (sobrecarga), aplicando *cooldowns* inteligentes por modelo e sanitizando o histórico (`Part.from_function_call`) para não reexecutar ferramentas já rodadas no meio do turno.
+1. **Roteador Multi-Modelo com Fallback Automático (`GeminiFallbackRouter`):** Rotaciona chamadas automaticamente entre **7 modelos Gemini** ordenados por capacidade (`gemini-3.8-flash` -> `gemini-3.6-flash` -> `gemini-3-flash-preview` -> `gemini-3.5-flash-lite` -> `gemini-3.1-flash-lite` -> `gemini-2.5-flash` -> `gemini-2.5-flash-lite`) ao detectar erros `HTTP 429` (limite de requisições da camada gratuita), `HTTP 503` (sobrecarga) ou `HTTP 404` (indisponibilidade), aplicando *cooldowns* inteligentes por modelo e sanitizando o histórico (`Part.from_function_call` + preservação de `thought_signature`) para não reexecutar ferramentas já rodadas no meio do turno.
 2. **Camada de Dados e Ferramentas Determinísticas (`v_product_catalog` + `src/tools.py`):**
    - **Disponibilidade Estrita:** Apenas produtos com `status = 'active'` e `stock_quantity > 0` são ofertados para pronta entrega. Itens sem estoque (`ID 96`), descontinuados (`ID 113`, `ID 136`), em pré-lançamento (`ID 130`) ou categorias vazias (`IDs 6, 7 e 8`) retornam automaticamente até **3 alternativas disponíveis** na mesma categoria e faixa de preço (Seção 7.3).
    - **Promoções e PIX Não-Cumulativo:** Deduplica `promotions.csv`, diferencia as 4 promoções ativas (`IDs 90, 94, 121, 127`) das 21 promoções expiradas (ex.: `Takamine GD20 ID 95`), aplica o desconto de 5% no PIX apenas quando não há promoção ativa (Seção 6.2) e calcula o parcelamento sem juros em até 12x respeitando as parcelas mínimas de R$ 50 (1x–3x), R$ 80 (4x–6x) e R$ 100 (7x–12x), além de *Split Payment* para compras acima de R$ 2.000,00 (Seção 3.1).
    - **LGPD e Prazos CDC:** Exige validação de titularidade antes de exibir dados de pedidos (Seção 9) e calcula de forma exata os prazos de 7 dias corridos (arrependimento/preferência), 30 dias (troca por defeito na loja) e 90 dias (garantia legal).
+3. **Workflow de Engenharia com Revisão Adversarial Multi-IA:**
+   - Todos os planos arquiteturais e prompts foram revisados pelo **Claude Sonnet**, a implementação foi conduzida com o **Google Antigravity** e cada entrega passou por revisão adversarial (*Red Team* e otimização de código) via **GLM 5.3 no OpenCode**, validada por 35 testes automatizados no `pytest`.
 
-### Como Executar Rapidamente
+### Como Executar Localmente (ou via Cloud)
 
 ```bash
-# 1. Criar e ativar o ambiente virtual
+# Opção Recomendada (Sem instalação): Acesse https://olmir-artefact.streamlit.app/
+
+# 1. Clonar e ativar o ambiente virtual Python
+git clone https://github.com/owmyr/Artefact.git
+cd Artefact
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -368,10 +434,11 @@ pytest -v
 # 4. Iniciar a interface web interativa (Streamlit)
 streamlit run app.py
 
-# 5. Iniciar a interface de terminal interativa (Rich CLI)
+# 5. (Opcional) Iniciar a interface de terminal interativa (Rich CLI)
+# Comandos internos no terminal: /models (status da cascata), /new (nova sessão), /exit (sair)
 python cli.py
 
-# 6. Regerar os 5 exemplos de conversação e o PDF executivo de submissão
+# 6. (Opcional) Regerar os 5 exemplos de conversação e o PDF executivo
 python scripts/generate_examples.py
 python scripts/export_submission_pdf.py
 ```
