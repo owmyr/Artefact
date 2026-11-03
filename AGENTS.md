@@ -33,6 +33,7 @@ Maintain this exact project layout:
 │   ├── policies_kb.py            # Section-preserved Markdown policy knowledge base
 │   ├── tools.py                  # Deterministic Pydantic-typed agent tools
 │   ├── llm_fallback.py           # Gemini Free-Tier multi-model fallback router
+│   ├── external_fallback.py      # Optional OpenAI-compatible fallback (Groq / Remote Ollama)
 │   ├── prompts.py                # System prompt, persona, and guardrails
 │   └── agent.py                  # Stateful ReAct loop + SQLite session memory
 ├── scripts/
@@ -40,8 +41,11 @@ Maintain this exact project layout:
 │   └── export_submission_pdf.py  # Compiles final executive summary PDF
 ├── examples/                     # 5 generated .md conversation logs
 └── tests/
+    ├── test_database.py          # Unit tests for SQLite schema & v_product_catalog view
+    ├── test_policies.py          # Unit tests for PDF policy sections & search
     ├── test_tools.py             # Unit tests for data/policy edge cases
-    └── test_fallback.py          # Unit tests for 429/503 model fallback rotation
+    ├── test_fallback.py          # Unit tests for 429/503 model fallback rotation
+    └── test_external_fallback.py # Unit tests for Groq / Remote Ollama fallback
 ```
 
 ## 3. LLM & Free-Tier Multi-Model Fallback Invariants

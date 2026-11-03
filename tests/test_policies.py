@@ -126,3 +126,8 @@ def test_search_policies_functionality():
     assert len(res_pix) > 0
     section_ids = [r["section_id"] for r in res_pix]
     assert 3 in section_ids or 6 in section_ids
+
+    res_lgpd_del = search_policies("exclusao de dados lgpd")
+    assert len(res_lgpd_del) > 0
+    assert res_lgpd_del[0]["section_id"] == 9
+    assert "exclusão de seus dados" in res_lgpd_del[0]["content_markdown"]

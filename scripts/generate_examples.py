@@ -365,7 +365,7 @@ class _DeterministicReActModels:
                 [
                     "",
                     "*(Observação de transparência: Os modelos **Giannini GF-3D Dreadnought Sunburst** [ID 96, R$ 799,90] "
-                    "e **Shelby SN-7C 7 Cordas Nylon Natural** [ID 113, R$ 699,00] não foram incluídos na lista de pronta "
+                    "e **Shelby SN-7C 7 Cordas Nylon Natural** [ID 113, R$ 749,00] não foram incluídos na lista de pronta "
                     "entrega pois encontram-se, respectivamente, sem estoque no momento e descontinuado.)*",
                     "",
                     "Gostaria de ver os detalhes de parcelamento sem juros de algum desses violões ou busca "
@@ -572,7 +572,7 @@ class _DeterministicReActModels:
                 f"- **Segunda a Sexta-feira:** **{c_info['hours_mon_fri']}** *(sem fechar para almoço)*",
                 f"- **Sábados:** **{c_info['hours_sat']}**",
                 f"- **Domingos e Feriados (Nacionais, Estaduais de MS e Municipais de Campo Grande):** **{c_info['hours_sun_holidays']}**",
-                "- *(Em datas especiais como Black Friday e Semana da Música em novembro, ou no Aniversário da Loja em março, operamos em horários estendidos divulgados previamente.)*",
+                "- *(Em datas especiais como Black Friday e Semana da Música em novembro, ou no Aniversário da Loja em agosto, operamos em horários estendidos divulgados previamente.)*",
                 "",
                 "Será um prazer receber sua visita na nossa loja no Centro de Campo Grande ou atender você pelo WhatsApp!",
             ]

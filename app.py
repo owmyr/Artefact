@@ -270,6 +270,8 @@ def _render_sidebar() -> None:
                 st.markdown(
                     f"`#{prio}` 🟡 **{m_name}** — Cooldown ({rem_s:.0f}s){active_badge}"
                 )
+            elif state == "unconfigured":
+                st.markdown(f"`#{prio}` ⚪ **{m_name}** — Opcional (Não configurado)")
             else:
                 st.markdown(f"`#{prio}` 🔴 **{m_name}** — Desativado")
 

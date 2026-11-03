@@ -17,6 +17,7 @@ from google import genai
 from google.genai import errors, types
 
 from src import config as settings
+from src.external_fallback import ExternalFallbackProvider
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +37,13 @@ class GeminiFallbackRouter:
         api_key: Optional[str] = None,
         models: Optional[list[str]] = None,
         client: Optional[genai.Client] = None,
+        external_provider: Optional[ExternalFallbackProvider] = None,
     ) -> None:
         """Initialize the Gemini client, model cascade, and cooldown tracking state.
 
         Why: Allows dependency injection of a mock client or custom model list in unit
         tests while defaulting to `settings.GEMINI_API_KEY` and `settings.GEMINI_MODEL_CASCADE`.
+        Supports an optional external fallback provider (Groq/Ollama) for zero-local-install failover.
         """
         resolved_key = api_key if api_key is not None else settings.GEMINI_API_KEY
         # Use a placeholder string if no key is configured yet so client instantiation
@@ -49,6 +52,11 @@ class GeminiFallbackRouter:
         self.client: genai.Client = client or genai.Client(api_key=self.api_key)
         self.models: list[str] = list(
             models if models is not None else settings.GEMINI_MODEL_CASCADE
+        )
+        self.external_provider: Optional[ExternalFallbackProvider] = (
+            external_provider
+            if external_provider is not None
+            else ExternalFallbackProvider()
         )
         self.model_cooldown_until: dict[str, float] = {}
         self.disabled_models: set[str] = set()
@@ -148,6 +156,26 @@ class GeminiFallbackRouter:
                     "cooldown_remaining_s": round(remaining, 1),
                 }
             )
+
+        if self.external_provider and self.external_provider.is_available():
+            status_list.append(
+                {
+                    "priority": len(self.models) + 1,
+                    "model": self.external_provider.provider_name,
+                    "state": "ready",
+                    "cooldown_remaining_s": 0.0,
+                }
+            )
+        elif self.external_provider:
+            status_list.append(
+                {
+                    "priority": len(self.models) + 1,
+                    "model": "external_provider (Groq/Ollama)",
+                    "state": "unconfigured",
+                    "cooldown_remaining_s": 0.0,
+                }
+            )
+
         return status_list
 
     def generate_with_fallback(
@@ -174,6 +202,44 @@ class GeminiFallbackRouter:
         candidates = self._get_candidate_models()
 
         if not candidates:
+            if self.external_provider and self.external_provider.is_available():
+                logger.info(
+                    "All Gemini models disabled or unavailable. Invoking external provider fallback '%s'.",
+                    self.external_provider.provider_name,
+                )
+                try:
+                    resp = self.external_provider.generate_content(
+                        contents=contents, config=config
+                    )
+                    fallback_events.append(
+                        {
+                            "model": self.external_provider.provider_name,
+                            "status_code": 200,
+                            "reason": "gemini_all_disabled_external_fallback",
+                            "action": "external_provider_succeeded",
+                            "cooldown_seconds": None,
+                            "retried_same_model": False,
+                            "error": None,
+                        }
+                    )
+                    return resp, self.external_provider.provider_name, fallback_events
+                except Exception as ext_exc:
+                    fallback_events.append(
+                        {
+                            "model": self.external_provider.provider_name,
+                            "status_code": 500,
+                            "reason": "external_provider_failed",
+                            "action": "external_provider_error",
+                            "cooldown_seconds": None,
+                            "retried_same_model": False,
+                            "error": str(ext_exc),
+                        }
+                    )
+                    raise RuntimeError(
+                        f"Todos os modelos Gemini e o provedor externo '{self.external_provider.provider_name}' falharam. "
+                        f"Último erro externo: {ext_exc}"
+                    ) from ext_exc
+
             raise RuntimeError(
                 "Nenhum modelo Gemini disponível na cascata (todos os modelos estão desativados)."
             )
@@ -303,6 +369,44 @@ class GeminiFallbackRouter:
                     cooldown_s,
                 )
                 continue
+
+        if self.external_provider and self.external_provider.is_available():
+            logger.info(
+                "All Gemini models in cascade failed or exhausted. Attempting external provider fallback '%s'.",
+                self.external_provider.provider_name,
+            )
+            try:
+                response = self.external_provider.generate_content(
+                    contents=contents, config=config
+                )
+                fallback_events.append(
+                    {
+                        "model": self.external_provider.provider_name,
+                        "status_code": 200,
+                        "reason": "gemini_cascade_exhausted_external_fallback",
+                        "action": "external_provider_succeeded",
+                        "cooldown_seconds": None,
+                        "retried_same_model": False,
+                        "error": None,
+                    }
+                )
+                return response, self.external_provider.provider_name, fallback_events
+            except Exception as ext_exc:
+                fallback_events.append(
+                    {
+                        "model": self.external_provider.provider_name,
+                        "status_code": 500,
+                        "reason": "external_provider_failed",
+                        "action": "external_provider_error",
+                        "cooldown_seconds": None,
+                        "retried_same_model": False,
+                        "error": str(ext_exc),
+                    }
+                )
+                raise RuntimeError(
+                    f"Todos os modelos Gemini na cascata e o provedor externo '{self.external_provider.provider_name}' falharam. "
+                    f"Eventos de fallback: {len(fallback_events)}. Último erro: {ext_exc}"
+                ) from ext_exc
 
         raise RuntimeError(
             f"Todos os modelos Gemini na cascata falharam. Eventos de fallback: {len(fallback_events)}. "

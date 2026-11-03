@@ -650,8 +650,19 @@ def search_catalog(
     conn = _ensure_db_connection()
     try:
         cur = conn.cursor()
+        sql_clauses: list[str] = []
+        sql_params: list[Any] = []
+        if validated.min_price is not None:
+            sql_clauses.append("effective_price_brl >= ?")
+            sql_params.append(validated.min_price)
+        if validated.max_price is not None:
+            sql_clauses.append("effective_price_brl <= ?")
+            sql_params.append(validated.max_price)
+
+        where_sql = f"WHERE {' AND '.join(sql_clauses)}" if sql_clauses else ""
         all_rows = cur.execute(
-            "SELECT * FROM v_product_catalog ORDER BY price_brl ASC, product_id ASC;"
+            f"SELECT * FROM v_product_catalog {where_sql} ORDER BY price_brl ASC, product_id ASC;",
+            tuple(sql_params),
         ).fetchall()
 
         matched_rows: list[sqlite3.Row] = []
@@ -661,11 +672,10 @@ def search_catalog(
             if validated.query and not _row_matches_query(row, validated.query):
                 continue
 
-            price_val = float(row["price_brl"])
             effective_val = float(row["effective_price_brl"])
-            if validated.min_price is not None and max(price_val, effective_val) < validated.min_price:
+            if validated.min_price is not None and effective_val < validated.min_price:
                 continue
-            if validated.max_price is not None and min(price_val, effective_val) > validated.max_price:
+            if validated.max_price is not None and effective_val > validated.max_price:
                 continue
 
             matched_rows.append(row)
@@ -688,11 +698,10 @@ def search_catalog(
                             continue
                         if not _row_matches_query(row, sq):
                             continue
-                        price_val = float(row["price_brl"])
                         effective_val = float(row["effective_price_brl"])
-                        if validated.min_price is not None and max(price_val, effective_val) < validated.min_price:
+                        if validated.min_price is not None and effective_val < validated.min_price:
                             continue
-                        if validated.max_price is not None and min(price_val, effective_val) > validated.max_price:
+                        if validated.max_price is not None and effective_val > validated.max_price:
                             continue
                         seen_row_ids.add(pid)
                         matched_rows.append(row)
@@ -947,16 +956,15 @@ def _verify_customer_match(
     ):
         return True
 
-    # 3. Name check (accent-insensitive token/substring match, minimum 3 chars)
+    # 3. Name check (accent-insensitive full name or >= 2 matching name tokens; rejects 3-char substrings)
     ident_norm = _normalize_text(ident_clean)
     cust_name_norm = _normalize_text(str(customer_row["name"]))
-    if len(ident_norm) >= 3:
-        if ident_norm in cust_name_norm or cust_name_norm in ident_norm:
-            return True
-        ident_tokens = [t for t in ident_norm.split() if len(t) >= 2]
-        cust_tokens = set(cust_name_norm.split())
-        if ident_tokens and all(t in cust_tokens for t in ident_tokens):
-            return True
+    if ident_norm and ident_norm == cust_name_norm:
+        return True
+    ident_tokens = [t for t in ident_norm.split() if len(t) >= 2 and t not in _STOPWORDS]
+    cust_tokens = {t for t in cust_name_norm.split() if len(t) >= 2 and t not in _STOPWORDS}
+    if len(ident_tokens) >= 2 and all(t in cust_tokens for t in ident_tokens):
+        return True
 
     return False
 
@@ -1069,11 +1077,18 @@ def _compute_order_policy_eligibility(
 
     if status in ("shipped", "confirmed", "pending"):
         store_defect_ok = bool(order_dt and 0 <= (ref_dt - order_dt).days <= 30)
+        estimated_delivery_overdue = bool(delivery_dt and ref_dt > delivery_dt)
+        overdue_note = (
+            f" Atenção: a previsão inicial de entrega ({estimated_delivery_str}) está vencida em relação à data de referência ({ref_dt.isoformat()})."
+            if estimated_delivery_overdue
+            else ""
+        )
         return {
             "reference_date": ref_dt.isoformat(),
             "order_status": status,
             "days_since_order": days_since_order,
             "days_since_delivery": None,
+            "estimated_delivery_overdue": estimated_delivery_overdue,
             "right_of_regret": {
                 "eligible": True,
                 "window_days": 7,
@@ -1082,7 +1097,7 @@ def _compute_order_policy_eligibility(
                 "refund_business_days": 10,
                 "explanation": (
                     "O pedido ainda não foi entregue (status atual: "
-                    f"'{status}', previsão: {estimated_delivery_str or 'a definir'}). "
+                    f"'{status}', previsão: {estimated_delivery_str or 'a definir'}).{overdue_note} "
                     "O cliente pode solicitar o cancelamento ou exercer o Direito de Arrependimento em até "
                     "7 dias corridos a partir da data efetiva de recebimento do produto, com frete de devolução "
                     "pago pela loja e reembolso em até 10 dias úteis (Seção 4.1)."
@@ -1099,6 +1114,7 @@ def _compute_order_policy_eligibility(
             },
             "defect_exchange_store": {
                 "eligible": True,
+                "within_30d_from_order_date": store_defect_ok,
                 "window_days": 30,
                 "deadline_date": store_defect_deadline,
                 "manufacturer_intermediation_available": True,
@@ -1548,6 +1564,7 @@ _TOPIC_SECTION_MAP: dict[str, list[int]] = {
     "lgpd": [9],
     "privacidade": [9],
     "dados": [9],
+    "exclusao": [9],
     "seguranca": [9],
     "sigilo": [9],
     "cpf": [9],

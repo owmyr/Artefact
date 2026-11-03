@@ -27,14 +27,43 @@ PROMOTIONS_CSV: Path = DATA_DIR / "promotions.csv"
 POLICIES_PDF_ACCENTED: Path = DATA_DIR / "políticas_da_loja.pdf"
 POLICIES_PDF_UNACCENTED: Path = DATA_DIR / "politicas_da_loja.pdf"
 POLICIES_PDF: Path = (
-    POLICIES_PDF_ACCENTED if POLICIES_PDF_ACCENTED.exists() else POLICIES_PDF_UNACCENTED
+    POLICIES_PDF_ACCENTED
+    if POLICIES_PDF_ACCENTED.exists() and POLICIES_PDF_ACCENTED.stat().st_size > 1024
+    else POLICIES_PDF_UNACCENTED
 )
 
 # Load environment variables from .env file if present
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
+
+def _get_env_or_secret(key: str, default: str = "") -> str:
+    """Retrieve configuration from environment variable or Streamlit secrets.
+
+    Why: Allows seamless configuration via either local .env or Streamlit Cloud secrets.
+    """
+    val = os.getenv(key)
+    if val is not None and val.strip():
+        return val.strip()
+    try:
+        import streamlit as st
+
+        if hasattr(st, "secrets") and key in st.secrets:
+            secret_val = st.secrets[key]
+            if secret_val:
+                return str(secret_val).strip()
+    except Exception:
+        pass
+    return default
+
+
 # Google Gemini API key
-GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY: str = _get_env_or_secret("GEMINI_API_KEY", "")
+
+# External OpenAI-compatible Fallback Settings (Groq Cloud or Remote Ollama)
+GROQ_API_KEY: str = _get_env_or_secret("GROQ_API_KEY", "")
+GROQ_MODEL: str = _get_env_or_secret("GROQ_MODEL", "llama-3.3-70b-versatile")
+OLLAMA_HOST: str = _get_env_or_secret("OLLAMA_HOST", "")
+OLLAMA_MODEL: str = _get_env_or_secret("OLLAMA_MODEL", "llama3.3")
 
 # Prioritized Free-Tier Gemini Model Fallback Cascade optimized by model capability
 DEFAULT_MODEL_CASCADE: list[str] = [
@@ -74,6 +103,10 @@ class Settings:
     PROMOTIONS_CSV: Path = PROMOTIONS_CSV
     POLICIES_PDF: Path = POLICIES_PDF
     GEMINI_API_KEY: str = GEMINI_API_KEY
+    GROQ_API_KEY: str = GROQ_API_KEY
+    GROQ_MODEL: str = GROQ_MODEL
+    OLLAMA_HOST: str = OLLAMA_HOST
+    OLLAMA_MODEL: str = OLLAMA_MODEL
     DEFAULT_MODEL_CASCADE: list[str] = DEFAULT_MODEL_CASCADE
     GEMINI_MODEL_CASCADE: list[str] = GEMINI_MODEL_CASCADE
 

@@ -222,7 +222,17 @@ Além da garantia legal obrigatória, as marcas parceiras oferecem garantias com
     9: {
         "section_id": 9,
         "title": "9. Privacidade e Proteção de Dados (LGPD)",
-        "keywords": ["lgpd", "privacidade", "dados", "seguranca", "cpf", "email", "telefone", "consulta pedido"],
+        "keywords": [
+            "lgpd",
+            "privacidade",
+            "dados",
+            "exclusao",
+            "seguranca",
+            "cpf",
+            "email",
+            "telefone",
+            "consulta pedido",
+        ],
         "content_markdown": """### 9. Privacidade e Proteção de Dados (LGPD)
 
 A Empório da Música atua em estrita conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD — Lei nº 13.709/2018).
@@ -234,9 +244,10 @@ Os dados cadastrais de clientes (nome completo, telefone, e-mail, CPF e endereç
 - Comunicação de promoções (somente quando expressamente autorizada pelo titular).
 - Cumprimento de obrigações legais e regulatórias perante órgãos fiscais.
 
-#### 9.2 Segurança e Sigilo
+#### 9.2 Segurança, Sigilo e Exclusão de Dados
 - Os dados jamais são comercializados ou cedidos a terceiros para publicidade ou marketing não solicitado.
 - Para consultas a detalhes de pedidos anteriores ou status de entrega, é **obrigatória a validação de segurança**: o cliente deve fornecer o número do pedido (`order_id`) associado a uma confirmação de identidade (nome completo, e-mail ou telefone cadastrado).
+- **Direito de Exclusão de Dados**: O cliente pode solicitar a exclusão de seus dados pessoais a qualquer momento entrando em contato pelo WhatsApp ou e-mail oficial da loja.
 """,
     },
     10: {

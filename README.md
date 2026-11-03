@@ -7,7 +7,7 @@
 [![Google GenAI SDK](https://img.shields.io/badge/Google%20GenAI%20SDK-google--genai-4285F4?logo=google&logoColor=white)](https://pypi.org/project/google-genai/)
 [![SQLite3](https://img.shields.io/badge/Database-SQLite3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://olmir-artefact.streamlit.app/)
-[![Tests](https://img.shields.io/badge/Tests-pytest%2035%20passed%20(100%25)-brightgreen?logo=pytest)](https://docs.pytest.org/)
+[![Tests](https://img.shields.io/badge/Tests-pytest%2045%20passed%20(100%25)-brightgreen?logo=pytest)](https://docs.pytest.org/)
 
 > **Technical Case Assessment — AI Engineer (Full-Stack para Aplicações com IA Generativa)**  
 > **Candidate:** Olmir Stocker Neto  
@@ -133,6 +133,7 @@ flowchart TB
 │   ├── policies_kb.py            # Section-preserved Markdown policy knowledge base
 │   ├── tools.py                  # Deterministic Pydantic-typed agent tools
 │   ├── llm_fallback.py           # Gemini Free-Tier multi-model fallback router
+│   ├── external_fallback.py      # Optional OpenAI-compatible fallback (Groq / Remote Ollama)
 │   ├── prompts.py                # System prompt, pt-BR persona, and guardrails
 │   └── agent.py                  # Stateful ReAct loop + SQLite session persistence
 ├── scripts/
@@ -144,11 +145,12 @@ flowchart TB
 │   ├── 03_politica_devolucao_e_status_pedido.md
 │   ├── 04_informacoes_gerais_e_frete.md
 │   └── 05_fora_de_escopo_acessorios_e_guardrails.md
-└── tests/                        # Comprehensive pytest suite (35 unit & integration tests)
+└── tests/                        # Comprehensive pytest suite (45 unit & integration tests)
     ├── test_database.py
     ├── test_policies.py
     ├── test_tools.py
-    └── test_fallback.py
+    ├── test_fallback.py
+    └── test_external_fallback.py
 ```
 
 ---
@@ -207,7 +209,7 @@ GEMINI_MODELS=gemini-3.8-flash,gemini-3.6-flash,gemini-3-flash-preview,gemini-3.
 
 #### Step 3: Run the Automated Test Suite (`pytest`)
 
-All 35 unit tests validate the SQLite views, policy knowledge base extraction, edge-case catalog and order tools, and simulated HTTP `429`/`503` model fallback rotations (no live API key required for unit tests):
+All 45 unit tests validate the SQLite views, policy knowledge base extraction, edge-case catalog and order tools, and simulated HTTP `429`/`503` model fallback rotations (no live API key required for unit tests):
 
 ```bash
 pytest -v
@@ -297,6 +299,7 @@ To guarantee uninterrupted execution during multi-turn conversations and batch t
   - **HTTP `503` / `500` / `504` (Transient Server Overload):** Sleeps `1.5s`, retries the same model once, and if still overloaded, applies a **30-second cooldown** and rotates to the next model.
   - **HTTP `404` / `400` (Unsupported/Deprecated Model):** Permanently adds the model to `disabled_models` for the session lifetime (e.g., if a preview model ID is unavailable for a specific API key tier, the router seamlessly steps down the cascade).
 - **Cross-Model History Sanitization (`thought_signature` Continuity):** Models across the Gemini 3.x and 2.5 families emit internal `thought` parts and `thought_signature` tokens alongside function calls. `EmporioAgent` strips raw thinking text blocks while preserving `thought_signature` tokens on reconstructed `types.Part.from_function_call(name=..., args=...)` and `types.Part.from_function_response(name=..., response=...)` objects before appending to history and persisting to SQLite.
+- **Optional Zero-Local-Install External Provider (`src/external_fallback.py`):** If all 7 Gemini models are simultaneously in cooldown or exhausted, `GeminiFallbackRouter` can optionally route requests to **Groq Cloud** (`GROQ_API_KEY`, defaulting to `llama-3.3-70b-versatile`) or a **Remote Ollama** endpoint (`OLLAMA_HOST`), automatically translating tool declarations, multi-turn history, and tool responses between `google-genai` and OpenAI-compatible schemas.
 
 ### 3.3 Policy Retrieval Strategy (`src/policies_kb.py`)
 
@@ -315,9 +318,9 @@ A naive query filtering only by `status = 'active'` or only by `stock_quantity >
 | Product ID | Instrument Name | `status` in CSV | `stock_quantity` | Anomaly & System Treatment |
 | :---: | :--- | :---: | :---: | :--- |
 | **`96`** | *Giannini GF-3D Dreadnought Sunburst* (R$ 799.90) | `'active'` | **`0`** | **Out of Stock (`out_of_stock`):** Excluded from available listings (leaving exactly **12** available acoustic guitars <= R$ 1,000); tool automatically attaches 3 available alternatives in Category 5. |
-| **`136`** | *Ibanez Bass 2X Electric Bass* (R$ 1,955.00) | **`'discontinued'`** | `13` | **Discontinued (`discontinued`):** Despite residual `stock_quantity=13`, a discontinued item must never be sold as available. Reported as out-of-line with 3 active Electric Bass alternatives. |
-| **`113`** | *Shelby SN-7C 7 Cordas Nylon Natural* (R$ 699.00) | **`'discontinued'`** | `0` | **Discontinued (`discontinued`):** Reported as discontinued; suggests active 7-string guitars (`Tagima TW-7`, `Giannini GWNE-7`, `Rozini RV-174`). |
-| **`130`** | *Kala KA-ABP-CTG Barítono Cedar* (R$ 1,299.00) | **`'coming_soon'`** | `2` | **Coming Soon / Pre-Release (`coming_soon`):** Warehouse pre-release units (`stock_quantity=2`) are blocked from immediate sale; reported as pre-launch with 3 available Ukulele alternatives. |
+| **`136`** | *Ibanez Bass 2X Electric Bass* (R$ 441.00) | **`'discontinued'`** | `13` | **Discontinued (`discontinued`):** Despite residual `stock_quantity=13`, a discontinued item must never be sold as available. Reported as out-of-line with 3 active Electric Bass alternatives. |
+| **`113`** | *Shelby SN-7C 7 Cordas Nylon Natural* (R$ 749.00) | **`'discontinued'`** | `0` | **Discontinued (`discontinued`):** Reported as discontinued; suggests active 7-string guitars (`Tagima TW-7`, `Giannini GWNE-7`, `Rozini RV-174`). |
+| **`130`** | *Kala KA-ABP-CTG Barítono Cedar* (R$ 1,749.00) | **`'coming_soon'`** | `2` | **Coming Soon / Pre-Release (`coming_soon`):** Warehouse pre-release units (`stock_quantity=2`) are blocked from immediate sale; reported as pre-launch with 3 available Ukulele alternatives. |
 
 #### 2. Empty Catalog Categories (`categories.csv` vs. `products.csv`)
 `categories.csv` defines 9 categories, but `products.csv` (65 rows) contains **zero products** for three categories:
@@ -329,9 +332,9 @@ When a user searches for saxophones, flutes, trumpets, violins, or cellos, `sear
 
 #### 3. Promotion Deduplication, Expired Campaigns & PIX Non-Cumulativity (`promotions.csv`)
 - **Active vs. Inactive Rows:** `promotions.csv` has 25 rows, but **only 4 rows have `is_active == 1`**:
-  - `promotion_id=12` -> `product_id=127` (*Kala KA-15S Soprano Mogno*): **10% OFF** (R$ 229.90 -> **R$ 206.91**)
-  - `promotion_id=14` -> `product_id=121` (*Kala KA-T Tenor Mogno*): **20% OFF** (R$ 499.90 -> **R$ 399.92**)
-  - `promotion_id=19` -> `product_id=90` (*Washburn WD10SCE Elétrico Natural*): **18% OFF** (R$ 1,599.00 -> **R$ 1,311.18**)
+  - `promotion_id=12` -> `product_id=127` (*Kalani KAL-700T Tenor Natural*): **10% OFF** (R$ 359.00 -> **R$ 323.10**)
+  - `promotion_id=14` -> `product_id=121` (*Ohana CK-20 Concert Natural*): **20% OFF** (R$ 549.00 -> **R$ 439.20**)
+  - `promotion_id=19` -> `product_id=90` (*Crafter HT-100 Folk Aço Natural*): **18% OFF** (R$ 2,399.00 -> **R$ 1,967.18**)
   - `promotion_id=24` -> `product_id=94` (*Taylor 110e Dreadnought Natural*): **8% OFF** (R$ 5,999.00 -> **R$ 5,519.08**)
 - **Duplicate Inactive Rows:** Products `93`, `96`, and `99` have duplicate rows in `promotions.csv`. A naive `LEFT JOIN promotions` duplicates these products in search results. Our `v_product_catalog` view uses `ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY promotion_id DESC)` CTEs to guarantee a strict 1-to-1 row count (65 products).
 - **Expired Promotion Transparency (Policy Section 7.3):** When a customer asks about a product with `is_active == 0` — such as `product_id=95` (*Takamine GD20 Dreadnought Natural*, which had an expired 12% *"Oferta Especial"* promotion) — the tool exposes `expired_promotion_info` so the agent transparently explains that the 12% campaign has ended and quotes the current table price (`R$ 2,199.00`) alongside the 5% PIX discount (`R$ 2,089.05`).
@@ -374,7 +377,7 @@ flowchart LR
     EDA["1. Upfront EDA &<br/>Spec (AGENTS.md)"] --> PLAN["2. Plan & Prompt<br/>Critique (Claude Sonnet)"]
     PLAN --> IMPL["3. Milestone Implementation<br/>(Google Antigravity)"]
     IMPL --> ADV["4. Adversarial Code Review<br/>(GLM 5.3 via OpenCode)"]
-    ADV --> TEST["5. Pytest Gate<br/>(35/35 Passed)"]
+    ADV --> TEST["5. Pytest Gate<br/>(45/45 Passed)"]
 ```
 
 1. **Upfront Exploratory Data Analysis (EDA) & Governance Specification (`AGENTS.md`):**
@@ -410,7 +413,7 @@ Este repositório apresenta o **Agente Inteligente de Atendimento ao Cliente** d
    - **Promoções e PIX Não-Cumulativo:** Deduplica `promotions.csv`, diferencia as 4 promoções ativas (`IDs 90, 94, 121, 127`) das 21 promoções expiradas (ex.: `Takamine GD20 ID 95`), aplica o desconto de 5% no PIX apenas quando não há promoção ativa (Seção 6.2) e calcula o parcelamento sem juros em até 12x respeitando as parcelas mínimas de R$ 50 (1x–3x), R$ 80 (4x–6x) e R$ 100 (7x–12x), além de *Split Payment* para compras acima de R$ 2.000,00 (Seção 3.1).
    - **LGPD e Prazos CDC:** Exige validação de titularidade antes de exibir dados de pedidos (Seção 9) e calcula de forma exata os prazos de 7 dias corridos (arrependimento/preferência), 30 dias (troca por defeito na loja) e 90 dias (garantia legal).
 3. **Workflow de Engenharia com Revisão Adversarial Multi-IA:**
-   - Todos os planos arquiteturais e prompts foram revisados pelo **Claude Sonnet**, a implementação foi conduzida com o **Google Antigravity** e cada entrega passou por revisão adversarial (*Red Team* e otimização de código) via **GLM 5.3 no OpenCode**, validada por 35 testes automatizados no `pytest`.
+   - Todos os planos arquiteturais e prompts foram revisados pelo **Claude Sonnet**, a implementação foi conduzida com o **Google Antigravity** e cada entrega passou por revisão adversarial (*Red Team* e otimização de código) via **GLM 5.3 no OpenCode**, validada por 45 testes automatizados no `pytest`.
 
 ### Como Executar Localmente (ou via Cloud)
 
@@ -428,7 +431,7 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edite o arquivo .env e insira sua GEMINI_API_KEY=...
 
-# 3. Executar a suíte completa de testes automatizados (35 testes)
+# 3. Executar a suíte completa de testes automatizados (45 testes)
 pytest -v
 
 # 4. Iniciar a interface web interativa (Streamlit)

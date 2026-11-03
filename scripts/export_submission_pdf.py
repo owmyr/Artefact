@@ -130,7 +130,7 @@ class SubmissionPDF(FPDF):
         self.cell(
             0,
             8,
-            sanitize_latin1(f"Página {self.page_no()}/{{nb}}  |  {GITHUB_REPO_URL}"),
+            sanitize_latin1(f"Page {self.page_no()}/{{nb}}  |  {GITHUB_REPO_URL}"),
             align="C",
             link=GITHUB_REPO_URL,
         )
@@ -323,16 +323,21 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
         "the next model synthesizes the final response from clean `Part.from_function_call` / "
         "`Part.from_function_response` objects without re-running the already-executed tool.",
     )
+    pdf.bullet_item(
+        "Optional External Provider (`src/external_fallback.py`)",
+        "If all 7 Gemini models are simultaneously in cooldown, the router optionally fails over to "
+        "Groq Cloud (`llama-3.3-70b-versatile`) or a Remote Ollama endpoint via OpenAI-compatible translation.",
+    )
 
     # Section 3: EDA Anomalies Discovered & Solved
     pdf.section_banner("3. EXPLORATORY DATA ANALYSIS (EDA) ANOMALIES DISCOVERED & SOLVED")
     pdf.bullet_item(
         "1. Stock vs. Status Anomalies (`products.csv`)",
         "Enforced `is_available = (status == 'active' AND stock_quantity > 0)`. Caught `product_id=96` "
-        "(Giannini GF-3D, `active` but `stock=0` -> out of stock, leaving exactly 12 available acoustic "
-        "guitars <= R$ 1,000), `product_id=136` (Ibanez Bass 2X, `stock=13` but `discontinued`), "
-        "`product_id=113` (Shelby SN-7C, `discontinued`), and `product_id=130` (Kala Barítono, `coming_soon`). "
-        "All return up to 3 in-stock alternatives in the same category and price range (Section 7.3).",
+        "(Giannini GF-3D, R$ 799.90, `active` but `stock=0` -> out of stock, leaving exactly 12 available "
+        "acoustic guitars <= R$ 1,000), `product_id=136` (Ibanez Bass 2X, R$ 441.00, `stock=13` but `discontinued`), "
+        "`product_id=113` (Shelby SN-7C, R$ 749.00, `discontinued`), and `product_id=130` (Kala Barítono, R$ 1,749.00, "
+        "`coming_soon`). All return up to 3 in-stock alternatives in the same category and price range (Section 7.3).",
     )
     pdf.bullet_item(
         "2. Empty Catalog Categories (`categories.csv`)",
@@ -342,7 +347,9 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
     )
     pdf.bullet_item(
         "3. Promotion Deduplication & Expired Campaigns (`promotions.csv`)",
-        "Only 4 of 25 rows have `is_active=1` (IDs 12, 14, 19, 24 on products 127, 121, 90, 94). Duplicate "
+        "Only 4 of 25 rows have `is_active=1`: promo 12 (`product_id=127` Kalani KAL-700T, 10% OFF -> R$ 323.10), "
+        "promo 14 (`product_id=121` Ohana CK-20, 20% OFF -> R$ 439.20), promo 19 (`product_id=90` Crafter HT-100, "
+        "18% OFF -> R$ 1,967.18), and promo 24 (`product_id=94` Taylor 110e, 8% OFF -> R$ 5,519.08). Duplicate "
         "inactive rows (products 93, 96, 99) are deduplicated via `ROW_NUMBER()` in `v_product_catalog`. "
         "Expired promotions (e.g., `product_id=95` Takamine GD20, 12% expired) are disclosed transparently "
         "with current table price (R$ 2,199.00) + 5% PIX (R$ 2,089.05). The 5% PIX discount never stacks "
@@ -357,13 +364,36 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
     )
     pdf.bullet_item(
         "5. LGPD Verification & CDC Date Windows (`orders.csv`)",
-        "`get_order_status` requires `order_id` + customer identity verification (Section 9 LGPD) and "
-        "deterministically computes 7-day Right of Regret (from delivery), 30-day Store Defect Exchange "
-        "(from purchase), and 90-day Legal Warranty windows.",
+        "`get_order_status` requires `order_id` + customer identity verification (>= 2 matching name tokens, "
+        "email, or phone per Section 9 LGPD) and deterministically computes 7-day Right of Regret (from delivery), "
+        "30-day Store Defect Exchange (from purchase), and 90-day Legal Warranty windows.",
     )
 
-    # Section 4: Environment Setup & Execution Instructions
-    pdf.section_banner("4. QUICK SETUP, LIVE DEMO & AI ENGINEERING WORKFLOW")
+    # Section 4: Known Limitations & Production Roadmap (With More Time)
+    pdf.section_banner("4. KNOWN LIMITATIONS & PRODUCTION ROADMAP (WITH MORE TIME)")
+    pdf.bullet_item(
+        "1. WhatsApp Business Cloud API & Distributed State (Redis + PostgreSQL)",
+        "Replace the local SQLite `chat_history` store with PostgreSQL for multi-instance persistence and "
+        "Redis distributed locks (`SETNX`) keyed by WhatsApp `wa_id` for webhook message debouncing.",
+    )
+    pdf.bullet_item(
+        "2. Cryptographic Customer Authentication (WhatsApp OTP / Magic Link)",
+        "Upgrade conversational LGPD verification (`order_id` + Name/Email/Phone) to verify the authenticated "
+        "WhatsApp sender number (`wa_id`) directly against `customers.phone` or send a 6-digit OTP.",
+    )
+    pdf.bullet_item(
+        "3. Hybrid Semantic + Lexical Search (`pgvector` + BM25) for Large Catalogs",
+        "Scale beyond 65 SKUs to 10,000+ SKUs by combining `pgvector` embeddings (`gemini-embedding-001`) "
+        "with PostgreSQL `tsvector` (Reciprocal Rank Fusion) while keeping hard SQL `WHERE` filters on price/stock.",
+    )
+    pdf.bullet_item(
+        "4. Automated HITL CRM Escalation & Live Carrier Freight APIs",
+        "Integrate a `create_support_ticket()` CRM webhook for Section 7.3 complaints (24-business-hour SLA) "
+        "and Section 5.2 oversized freight quotes alongside live Correios/Jadlog freight APIs by destination CEP.",
+    )
+
+    # Section 5: Environment Setup & Execution Instructions
+    pdf.section_banner("5. QUICK SETUP, LIVE DEMO & AI ENGINEERING WORKFLOW")
     pdf.bullet_item(
         "Adversarial Multi-Model AI Workflow",
         "Every architectural plan and prompt was reviewed by Claude Sonnet, implemented via Google Antigravity, "
@@ -374,7 +404,7 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
         "git clone https://github.com/owmyr/Artefact.git && cd Artefact\n"
         "python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt\n"
         "cp .env.example .env   # Set GEMINI_API_KEY=your_google_ai_studio_key\n"
-        "pytest -v              # Run all 35 unit & fallback tests\n"
+        "pytest -v              # Run all 45 unit & fallback tests\n"
         "streamlit run app.py   # Launch Web Chat UI with Telemetry Sidebar\n"
         "python cli.py          # (Optional) Launch Interactive Rich Terminal CLI"
     )
@@ -401,18 +431,32 @@ def _render_markdown_transcript(pdf: SubmissionPDF, md_path: Path) -> None:
         # Top-level Scenario Title (# Cenário ...)
         if stripped.startswith("# "):
             title_text = strip_markdown_inline(stripped[2:])
+            title_text = re.sub(r"^Cenário\s+", "Scenario ", title_text)
             pdf.section_banner(title_text)
             continue
 
         # Section headers (## ... or ### ...)
         if stripped.startswith("## ") or stripped.startswith("### "):
             level_text = re.sub(r"^#+\s*", "", stripped)
-            pdf.sub_heading(strip_markdown_inline(level_text))
+            clean_heading = strip_markdown_inline(level_text)
+            clean_heading = clean_heading.replace(
+                "Visão Geral do Cenário (Scenario Overview)", "Scenario Overview"
+            )
+            clean_heading = clean_heading.replace(
+                "Transcrição Turno a Turno (Turn-by-Turn Transcript)",
+                "Turn-by-Turn Transcript (pt-BR)",
+            )
+            clean_heading = re.sub(r"^Turno\s+", "Turn ", clean_heading)
+            pdf.sub_heading(clean_heading)
             continue
 
         # Speaker / Telemetry subheaders (#### ...)
         if stripped.startswith("#### "):
             role_text = strip_markdown_inline(stripped[5:])
+            role_text = role_text.replace(
+                "Telemetria de Execução (Model & Tools)",
+                "Execution Telemetry (Model & Tools)",
+            )
             pdf.ln(1)
             if "Cliente (User)" in role_text:
                 pdf.set_fill_color(232, 242, 254)
@@ -506,10 +550,13 @@ def _render_markdown_transcript(pdf: SubmissionPDF, md_path: Path) -> None:
         # Standard paragraph line
         pdf.set_font("Helvetica", "", 9.2)
         pdf.set_text_color(30, 35, 42)
+        para_text = strip_markdown_inline(stripped).replace(
+            "Detalhes das Chamadas de Ferramentas:", "Tool Call Details:"
+        )
         pdf.multi_cell(
             0,
             4.6,
-            strip_markdown_inline(stripped),
+            para_text,
             new_x="LMARGIN",
             new_y="NEXT",
         )

@@ -65,6 +65,8 @@ def _render_models_table(agent: EmporioAgent, last_model: str | None = None) -> 
             status_badge = "[bold green]🟢 PRONTO[/bold green]"
         elif state == "cooldown":
             status_badge = "[bold yellow]🟡 COOLDOWN[/bold yellow]"
+        elif state == "unconfigured":
+            status_badge = "[dim]⚪ OPCIONAL[/dim]"
         else:
             status_badge = "[bold red]🔴 DESATIVADO[/bold red]"
 

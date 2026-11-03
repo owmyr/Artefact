@@ -224,6 +224,20 @@ def test_get_order_status_lgpd_guardrails():
     assert wrong_person["verified"] is False
     assert wrong_person["status"] == "lgpd_verification_failed"
 
+    # Calling with a 3-letter substring or single first name must fail LGPD verification
+    short_substring = get_order_status(order_id=1, customer_identifier="oli")
+    assert short_substring["verified"] is False
+    assert short_substring["status"] == "lgpd_verification_failed"
+
+    single_first_name = get_order_status(order_id=1, customer_identifier="Pedro")
+    assert single_first_name["verified"] is False
+    assert single_first_name["status"] == "lgpd_verification_failed"
+
+    # Calling with two matching name tokens ("Pedro Oliveira") succeeds
+    two_tokens = get_order_status(order_id=1, customer_identifier="Pedro Oliveira")
+    assert two_tokens["verified"] is True
+    assert two_tokens["order_id"] == 1
+
 
 def test_get_order_status_order_1_delivered():
     """Test delivered Order #1 (Pedro Henrique Oliveira) against reference_date 2026-03-25."""

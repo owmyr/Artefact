@@ -68,7 +68,7 @@ Lembrando que, como nenhum desses modelos está em promoção ativa no momento, 
    - **Preço de Tabela:** R$ 999,00 | **À vista no PIX (-5%):** **R$ 949,05**
    - **Especificações:** Cordas de Aço (Acústico), Tampo em *Spruce*, Cor *Natural* | **Estoque:** 6 un.
 
-*(Observação de transparência: Os modelos **Giannini GF-3D Dreadnought Sunburst** [ID 96, R$ 799,90] e **Shelby SN-7C 7 Cordas Nylon Natural** [ID 113, R$ 699,00] não foram incluídos na lista de pronta entrega pois encontram-se, respectivamente, sem estoque no momento e descontinuado.)*
+*(Observação de transparência: Os modelos **Giannini GF-3D Dreadnought Sunburst** [ID 96, R$ 799,90] e **Shelby SN-7C 7 Cordas Nylon Natural** [ID 113, R$ 749,00] não foram incluídos na lista de pronta entrega pois encontram-se, respectivamente, sem estoque no momento e descontinuado.)*
 
 Gostaria de ver os detalhes de parcelamento sem juros de algum desses violões ou busca preferência por cordas de **nylon** ou **aço**?
 

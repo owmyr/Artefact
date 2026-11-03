@@ -41,7 +41,7 @@ Contamos com dois números oficiais para melhor atender você:
 - **Segunda a Sexta-feira:** **09:00 às 18:00** *(sem fechar para almoço)*
 - **Sábados:** **09:00 às 13:00**
 - **Domingos e Feriados (Nacionais, Estaduais de MS e Municipais de Campo Grande):** **Fechado**
-- *(Em datas especiais como Black Friday e Semana da Música em novembro, ou no Aniversário da Loja em março, operamos em horários estendidos divulgados previamente.)*
+- *(Em datas especiais como Black Friday e Semana da Música em novembro, ou no Aniversário da Loja em agosto, operamos em horários estendidos divulgados previamente.)*
 
 Será um prazer receber sua visita na nossa loja no Centro de Campo Grande ou atender você pelo WhatsApp!
 
