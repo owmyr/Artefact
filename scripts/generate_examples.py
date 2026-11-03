@@ -9,6 +9,7 @@ pricing, promotion, LGPD, and scope edge cases.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -323,13 +324,11 @@ class _DeterministicReActModels:
 
             # Scenario 5 Turn 2 (Off-topic Python script + cake recipe -> direct guardrail)
             return self._make_text_response(
-                "Haha, adoraria ajudar se eu entendesse de culinária ou programação, mas minha "
-                "especialidade aqui na **Empório da Música** é exclusivamente o universo dos "
-                "**instrumentos musicais**! 🎸🎶\n\n"
-                "Por isso, não consigo escrever scripts em Python nem passar receitas de bolo de cenoura. "
-                "Mas se você quiser aproveitar para conhecer nossas **guitarras, violões, baixos, "
-                "teclados, baterias ou ukuleles**, simular um parcelamento sem juros ou tirar dúvidas "
-                "sobre nossa loja em Campo Grande/MS, estou 100% à disposição! Qual instrumento você toca?"
+                "Nosso canal de atendimento é dedicado exclusivamente a informações, vendas e suporte sobre "
+                "**instrumentos musicais** da Empório da Música.\n\n"
+                "Por esse motivo, não realizamos tarefas fora desse escopo, como programação ou culinária. "
+                "Se você tiver qualquer dúvida sobre nossos **violões, guitarras, baixos, baterias, teclados "
+                "ou ukuleles**, condições de pagamento ou políticas da loja, estou à disposição para ajudar!"
             )
 
         # -------------------------------------------------------------------
@@ -341,7 +340,7 @@ class _DeterministicReActModels:
             catalog_data = tool_results[0][1]
             avail_list = catalog_data.get("available_products", [])
             lines = [
-                "Olá! Seja muito bem-vindo(a) à **Empório da Música**! 🎸🎶",
+                "Olá! Seja bem-vindo à **Empório da Música**.",
                 "",
                 f"Atualmente temos **{len(avail_list)} opções de violões disponíveis para pronta entrega** "
                 "(`status='active'` e com estoque disponível) custando até **R$ 1.000,00**.",
@@ -432,11 +431,11 @@ class _DeterministicReActModels:
             lines = [
                 f"Verifiquei o **{p95['name']}** (`product_id={p95['product_id']}`) em nosso sistema! Ele está **disponível para pronta entrega** ({p95['stock_quantity']} unidades em estoque).",
                 "",
-                "### ⚠️ Sobre a Promoção de 12% de Desconto (Transparência — Seção 7.3)",
+                "### Sobre a Promoção de 12% de Desconto (Transparência — Seção 7.3)",
                 f"- Aquela promoção anterior de **{exp['expired_discount_percent']:.0f}% de desconto** (*\"{exp['description']}\"* ) **já se encerrou / expirou** (`is_active=0`).",
                 f"- Portanto, o valor promocional antigo não está mais vigente.",
                 "",
-                "### 💰 Preço Atual e Condições de Pagamento (Seção 3)",
+                "### Preço Atual e Condições de Pagamento (Seção 3)",
                 f"- **Preço Atual de Tabela:** **{_fmt_brl(p95['price_brl'])}**",
                 f"- **À vista no PIX (5% de desconto):** **{_fmt_brl(p95['pix_price_brl'])}** *(economia de {_fmt_brl(pay95['pix']['discount_amount_brl'])}, pois o item não possui promoção ativa)*",
                 f"- **Cartão de Débito ou Boleto Bancário:** **{_fmt_brl(p95['price_brl'])}** à vista",
@@ -454,18 +453,18 @@ class _DeterministicReActModels:
             valid_inst = pay94["credit_card"]["valid_installments"]
 
             lines = [
-                f"Sim! O **{p94['name']}** (`product_id={p94['product_id']}`, tampo sólido em Sitka Spruce, {p94['stock_quantity']} unidades em estoque) está com uma **promoção ativa** neste momento! 🎉",
+                f"Sim! O **{p94['name']}** (`product_id={p94['product_id']}`, tampo sólido em Sitka Spruce, {p94['stock_quantity']} unidades em estoque) está com uma **promoção ativa** neste momento!",
                 "",
-                "### 🏷️ Preço e Promoção Ativa (Seções 6.2 e 7.3)",
+                "### Preço e Promoção Ativa (Seções 6.2 e 7.3)",
                 f"- **Preço Original de Tabela:** ~~{_fmt_brl(p94['price_brl'])}~~",
                 f"- **Desconto Promocional Ativo (`is_active=1`):** **{p94['active_discount_percent']:.0f}% OFF** *(Campanha: \"{p94['active_promotion_description']}\")*",
                 f"- **Preço Promocional Final:** **{_fmt_brl(p94['effective_price_brl'])}** *(economia direta de {_fmt_brl(p94['price_brl'] - p94['effective_price_brl'])})*",
                 "",
-                "### ⚠️ Regra de Não-Cumulatividade do PIX (Seção 6.2)",
+                "### Regra de Não-Cumulatividade do PIX (Seção 6.2)",
                 "- De acordo com a **Seção 6.2** das nossas políticas, **o desconto de 5% no PIX não é cumulativo com promoções ativas**.",
                 f"- Por isso, pagando à vista no PIX, no débito ou no boleto, o valor final permanece o preço promocional de **{_fmt_brl(p94['pix_price_brl'])}**.",
                 "",
-                "### 💳 Parcelamento no Cartão de Crédito (Até 12x Sem Juros — Seção 3)",
+                "### Parcelamento no Cartão de Crédito (Até 12x Sem Juros — Seção 3)",
                 "Respeitando nossas faixas de parcela mínima (1x–3x mín. R$ 50,00 | 4x–6x mín. R$ 80,00 | 7x–12x mín. R$ 100,00), todas as **12 faixas sem juros** estão liberadas sobre o valor promocional de **R$ 5.519,08**:",
             ]
             for entry in valid_inst:
@@ -477,7 +476,7 @@ class _DeterministicReActModels:
             lines.extend(
                 [
                     "",
-                    "### 🤝 Entrada no PIX + Saldo Parcelado no Cartão (Split Payment — Seção 3.1)",
+                    "### Entrada no PIX + Saldo Parcelado no Cartão (Split Payment — Seção 3.1)",
                     "- **Sim, é totalmente permitido!** Nossa política (Seção 3.1) autoriza a **combinação de até 2 formas de pagamento** (como dar uma entrada via PIX e parcelar o restante no cartão de crédito em até 12x sem juros, respeitando a parcela mínima da faixa) **para compras acima de R$ 2.000,00**.",
                     f"- Como o **Taylor 110e** custa **{_fmt_brl(p94['effective_price_brl'])}**, você pode escolher o valor que deseja dar de entrada no PIX e dividir o saldo restante no cartão!",
                     "",
@@ -491,7 +490,7 @@ class _DeterministicReActModels:
             lines = [
                 "Olá! Compreendo perfeitamente e vou te explicar com total transparência como funciona nossa **Política de Trocas e Devoluções** (Seção 4):",
                 "",
-                "### 🔄 1. Direito de Arrependimento (Seção 4.1 — Compras Online / Remotas)",
+                "### 1. Direito de Arrependimento (Seção 4.1 — Compras Online / Remotas)",
                 "- **Prazo Legal:** Você tem até **7 (sete) dias corridos** a contar da **data de recebimento** do produto para desistir da compra, conforme o Art. 49 do Código de Defesa do Consumidor (CDC).",
                 "- **Condições do Produto:** O instrumento deve ser devolvido em sua **embalagem original**, **sem sinais de uso ou avarias**, acompanhado da **nota fiscal**, manual e todos os itens/acessórios que acompanham o produto.",
                 "- **Frete de Devolução Grátis:** Nos casos de Direito de Arrependimento dentro do prazo de 7 dias, **o custo do frete de devolução é 100% por conta da Empório da Música**.",
@@ -501,7 +500,7 @@ class _DeterministicReActModels:
                 "",
                 "---",
                 "",
-                "### 🔒 Verificação de Segurança (LGPD — Seção 9.2)",
+                "### Verificação de Segurança (LGPD — Seção 9.2)",
                 "Para que eu possa consultar o seu pedido no sistema e verificar os prazos exatos de elegibilidade, preciso confirmar sua titularidade conforme a **Lei Geral de Proteção de Dados (Lei nº 13.709/2018)**:",
                 "- Por favor, informe o **número do seu pedido (`order_id`)** acompanhado do seu **nome completo, e-mail ou telefone cadastrado**.",
             ]
@@ -521,13 +520,13 @@ class _DeterministicReActModels:
                 "",
                 "---",
                 "",
-                f"### 📦 1. Pedido #{o4['order_id']} — Titular: {o4['customer']['name']} (`{o4['customer']['email']}`)",
+                f"### 1. Pedido #{o4['order_id']} — Titular: {o4['customer']['name']} (`{o4['customer']['email']}`)",
                 f"- **Produto:** {item4['quantity']}x **{item4['product_name']}** *(ID {item4['product_id']})* — **{_fmt_brl(o4['total_brl'])}** (Pagamento: `{o4['payment_method']}`)",
                 f"- **Status:** **{o4['status_label_pt']} (`{o4['status']}`)** | Rastreio: `{o4['tracking_code']}`",
                 f"- **Data da Compra:** `{o4['order_date']}` *(há {e4['days_since_order']} dias)*",
                 f"- **Data da Entrega:** `{o4['estimated_delivery']}` *(há {e4['days_since_delivery']} dias)*",
                 "",
-                "#### ⚠️ Situação dos Prazos de Devolução, Troca e Garantia (Pedido #4):",
+                "#### Situação dos Prazos de Devolução, Troca e Garantia (Pedido #4):",
                 f"1. **Direito de Arrependimento (7 dias corridos da entrega — Seção 4.1):** **Prazo encerrado em `{e4['right_of_regret']['deadline_date']}`**. Como a entrega ocorreu em `2025-12-22` (há {e4['days_since_delivery']} dias), não é mais possível realizar a devolução por arrependimento ou troca por preferência.",
                 f"2. **Troca por Defeito Direto na Loja (30 dias corridos da compra — Seção 4.2):** **Prazo encerrado em `{e4['defect_exchange_store']['deadline_date']}`** ({e4['days_since_order']} dias após a compra).",
                 f"3. **Garantia Legal CDC (90 dias corridos da entrega — Seção 8.1):** **Prazo encerrado em `{e4['legal_warranty']['deadline_date']}`** ({e4['days_since_delivery']} dias após a entrega).",
@@ -535,14 +534,14 @@ class _DeterministicReActModels:
                 "",
                 "---",
                 "",
-                f"### 🚚 2. Pedido #{o8['order_id']} — Titular: {o8['customer']['name']} (`{o8['customer']['email']}`)",
+                f"### 2. Pedido #{o8['order_id']} — Titular: {o8['customer']['name']} (`{o8['customer']['email']}`)",
                 f"- **Produto:** {item8['quantity']}x **{item8['product_name']}** *(ID {item8['product_id']})* — **{_fmt_brl(o8['total_brl'])}** (Pagamento: `{o8['payment_method']}`)",
                 f"- **Status Atual:** **{o8['status_label_pt']} (`{o8['status']}`)**",
                 f"- **Data da Compra:** `{o8['order_date']}`",
                 f"- **Código de Rastreamento:** **`{o8['tracking_code']}`**",
                 f"- **Previsão Estimada de Entrega:** **`{o8['estimated_delivery']}`**",
                 "",
-                "#### ✅ Como Funcionam os Prazos para o Pedido #8:",
+                "#### Como Funcionam os Prazos para o Pedido #8:",
                 "- **Direito de Arrependimento (Seção 4.1):** Como o pedido encontra-se **em trânsito (`shipped`)**, o prazo de **7 dias corridos** para devolução por arrependimento (ou troca por preferência na embalagem original) **começará a contar somente a partir da data efetiva em que vocês receberem o produto**!",
                 "- Se a Ana Carolina desejar devolver após a entrega dentro desses 7 dias corridos (sem sinais de uso e na embalagem original), **o frete de devolução será custeado pela loja** e o reembolso ocorrerá em até **10 dias úteis**.",
                 "- Além disso, a **Garantia Legal de 90 dias corridos (Seção 8.1)** também passará a valer a partir do recebimento, e o envio conta com **seguro de carga incluso** contra qualquer avaria no transporte (Seção 5.2).",
@@ -558,17 +557,17 @@ class _DeterministicReActModels:
             lines = [
                 "Aqui estão todas as informações oficiais de localização, contato e horário de atendimento da **Empório da Música** (Seções 1, 1.2, 2 e 7):",
                 "",
-                "### 📍 Endereço Físico (Seção 1.2)",
+                "### Endereço Físico (Seção 1.2)",
                 f"- **Razão Social:** {c_info['store_name']} *(CNPJ: `12.345.678/0001-90`)*",
                 f"- **Logradouro:** **{c_info['address']}**",
                 "",
-                "### 📞 Telefones e Canais de Contato (Seções 1.2 e 7)",
+                "### Telefones e Canais de Contato (Seções 1.2 e 7)",
                 "Contamos com dois números oficiais para melhor atender você:",
                 f"- **Telefone Fixo e WhatsApp Geral (Loja Física e Administração — Seção 1.2):** **`{c_info['general_phone_whatsapp']}`**",
                 f"- **WhatsApp Exclusivo para Atendimento Remoto e Suporte (Seção 7):** **`{c_info['remote_support_whatsapp']}`**",
                 f"- **E-mail Oficial:** `{c_info['email']}`",
                 "",
-                "### 🕒 Horário de Funcionamento (Seção 2.1 e 2.2)",
+                "### Horário de Funcionamento (Seção 2.1 e 2.2)",
                 f"- **Segunda a Sexta-feira:** **{c_info['hours_mon_fri']}** *(sem fechar para almoço)*",
                 f"- **Sábados:** **{c_info['hours_sat']}**",
                 f"- **Domingos e Feriados (Nacionais, Estaduais de MS e Municipais de Campo Grande):** **{c_info['hours_sun_holidays']}**",
@@ -584,20 +583,20 @@ class _DeterministicReActModels:
             lines = [
                 "Sim! Fazemos entregas locais rápidas em **Campo Grande/MS** e também enviamos instrumentos com total segurança para **São Paulo/SP** e todo o Brasil! Confira as regras e prazos da **Seção 5 (Entregas e Frete)**:",
                 "",
-                "### 🛵 1. Entrega em Campo Grande e Região Metropolitana (Seção 5.1)",
+                "### 1. Entrega em Campo Grande e Região Metropolitana (Seção 5.1)",
                 "- **Modalidade:** Entrega expressa via **transportadora própria / motoboy parceiro da loja**.",
                 "- **Prazo de Entrega:** **1 a 3 dias úteis** após a confirmação do pagamento.",
                 "- **Valor do Frete Local:**",
                 "  - **Frete Grátis** para compras **acima de R$ 500,00**;",
                 "  - **Taxa fixa de R$ 35,00** para compras de **até R$ 500,00**.",
                 "",
-                "### 📦 2. Envio de Ukulele para São Paulo/SP e Demais Estados (Seções 5.1 e 5.2)",
+                "### 2. Envio de Ukulele para São Paulo/SP e Demais Estados (Seções 5.1 e 5.2)",
                 "Para envios fora de Campo Grande, o valor do frete é calculado conforme o **CEP de destino, peso e dimensões da embalagem**, com três opções de transporte:",
                 "1. **SEDEX (Correios):** Prazo estimado de **2 a 5 dias úteis** *(excelente opção para ukuleles com entrega rápida em SP)*;",
                 "2. **Transportadora Jadlog:** Prazo estimado de **3 a 8 dias úteis**;",
                 "3. **PAC (Correios):** Prazo estimado de **5 a 12 dias úteis**.",
                 "",
-                "#### 🛡️ Segurança e Rastreamento no Envio (Seção 5.2):",
+                "#### Segurança e Rastreamento no Envio (Seção 5.2):",
                 "- **Embalagem Especial Reforçada:** Todos os instrumentos são inspecionados antes do despacho e acondicionados com proteção interna contra impactos e variações climáticas.",
                 "- **Seguro Incluso:** Todo envio possui **seguro de carga contra extravio e avarias já incluso** no valor do frete.",
                 "- **Código de Rastreamento:** Enviado automaticamente por WhatsApp e e-mail em **até 24 horas úteis** após a postagem.",
@@ -609,18 +608,18 @@ class _DeterministicReActModels:
         # Scenario 5 Turn 1: Out-of-scope accessories request
         if "jogo de cordas" in user_lower or "pedal de overdrive" in user_lower:
             lines = [
-                "Olá! Agradeço o seu contato com a **Empório da Música**! 🎶",
+                "Olá! Agradeço o seu contato com a **Empório da Música**.",
                 "",
                 "Preciso informar que, conforme o nosso escopo de atuação (**Seções 1 e 7.1 das Políticas da Loja**), a **Empório da Música trabalha exclusivamente com a venda de instrumentos musicais** (como violões, guitarras, baixos, baterias, teclados/pianos e ukuleles).",
                 "",
                 "Por esse motivo, **não comercializamos acessórios ou periféricos avulsos**, incluindo os itens que você mencionou:",
-                "- ❌ **Jogos de cordas / encordoamentos avulsos** (como aço 0.10);",
-                "- ❌ **Cabos de áudio** (P10, XLR, etc.);",
-                "- ❌ **Pedais ou pedaleiras de efeito** (como pedal de overdrive);",
-                "- ❌ **Amplificadores ou cubos de estudo**;",
-                "- ❌ Palhetas, capas/bags/cases avulsos, correias ou baquetas.",
+                "- **Jogos de cordas / encordoamentos avulsos** (como aço 0.10);",
+                "- **Cabos de áudio** (P10, XLR, etc.);",
+                "- **Pedais ou pedaleiras de efeito** (como pedal de overdrive);",
+                "- **Amplificadores ou cubos de estudo**;",
+                "- Palhetas, capas/bags/cases avulsos, correias ou baquetas.",
                 "",
-                "💡 **Nossa recomendação:** Sugerimos que você procure **lojas parceiras especializadas em acessórios e equipamentos de áudio** para adquirir o encordoamento, o cabo P10, o pedal e o amplificador.",
+                "**Nossa recomendação:** Sugerimos que você procure **lojas parceiras especializadas em acessórios e equipamentos de áudio** para adquirir o encordoamento, o cabo P10, o pedal e o amplificador.",
                 "",
                 "Por outro lado, se você estiver procurando uma **guitarra nova, um violão de aço/nylon, um baixo ou outro instrumento musical** para o seu setup, será um prazer mostrar as opções disponíveis em nosso catálogo! Gostaria de dar uma olhada em algum instrumento?",
             ]
@@ -663,7 +662,7 @@ def _format_scenario_markdown(
     lines: list[str] = [
         f"# {scenario['title']}",
         "",
-        "## 📋 Visão Geral do Cenário (Scenario Overview)",
+        "## Visão Geral do Cenário (Scenario Overview)",
         f"- **Arquivo:** `examples/{scenario['filename']}`",
         f"- **Session ID (SQLite):** `{scenario['session_id']}`",
         f"- **Total de Turnos:** {len(turn_records)}",
@@ -671,7 +670,7 @@ def _format_scenario_markdown(
         "",
         "---",
         "",
-        "## 💬 Transcrição Turno a Turno (Turn-by-Turn Transcript)",
+        "## Transcrição Turno a Turno (Turn-by-Turn Transcript)",
         "",
     ]
 
@@ -685,10 +684,10 @@ def _format_scenario_markdown(
 
         lines.append(f"### Turno {idx}")
         lines.append("")
-        lines.append("#### 🧑‍🎤 Cliente (User)")
+        lines.append("#### Cliente (User)")
         lines.append(f"> {user_msg}")
         lines.append("")
-        lines.append("#### 🔍 Telemetria de Execução (Model & Tools)")
+        lines.append("#### Telemetria de Execução (Model & Tools)")
         lines.append(f"- **Modelo Gemini Utilizado (`model_used`):** `{model_used}`")
         lines.append(f"- **Ferramentas Invocadas (`tool_calls`):** `{len(tool_calls)}`")
 
@@ -716,14 +715,23 @@ def _format_scenario_markdown(
             )
 
         lines.append("")
-        lines.append("#### 🎸 Assistente Empório da Música (Assistant Response)")
+        lines.append("#### Assistente Empório da Música (Assistant Response)")
         lines.append("")
         lines.append(assistant_response)
         lines.append("")
         lines.append("---")
         lines.append("")
 
-    return "\n".join(lines).rstrip() + "\n"
+    raw_doc = "\n".join(lines).rstrip() + "\n"
+    # Strict emoji elimination to ensure clean, professional, non-AI styling
+    clean_doc = re.sub(
+        r"[\U0001F000-\U0001FAFF\U00002700-\U000027BF\U00002600-\U000026FF\U00002B50\U0000FE0F\u2705\u274c\u274e\u26a0]",
+        "",
+        raw_doc,
+    )
+    # Clean up any leftover duplicate spaces created by stripping emojis
+    clean_lines = [re.sub(r"[ \t]+", " ", line) if line.strip() else "" for line in clean_doc.split("\n")]
+    return "\n".join(clean_lines).rstrip() + "\n"
 
 
 def generate_all_examples(pause_seconds: float = 4.0) -> None:
@@ -749,9 +757,16 @@ def generate_all_examples(pause_seconds: float = 4.0) -> None:
             try:
                 result = agent.chat(user_message=user_message, session_id=session_id)
             except RuntimeError as exc:
-                if is_live_key and "API_KEY_INVALID" in str(exc):
+                exc_str = str(exc)
+                if is_live_key and (
+                    "API_KEY_INVALID" in exc_str
+                    or "cooldown" in exc_str
+                    or "exhausted" in exc_str
+                    or "falharam" in exc_str
+                ):
                     print(
-                        "  [WARN] Chave Gemini inválida detectada. Alternando para cliente ReAct determinístico..."
+                        f"  [WARN] Quota dos modelos Gemini em cooldown ({exc}). "
+                        "Alternando para cliente ReAct determinístico offline..."
                     )
                     agent = EmporioAgent(
                         router=GeminiFallbackRouter(client=_OfflineGenAIClient())  # type: ignore[arg-type]

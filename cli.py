@@ -1,8 +1,8 @@
-"""Rich interactive terminal interface for the Empório da Música AI Support Agent.
+"""Rich interactive terminal interface for the Empório da Música Support Agent.
 
 Why: Enables developers and evaluators to converse with `EmporioAgent` directly in
-the terminal with rich Markdown rendering, tool-execution telemetry panels, active
-Gemini model badges, and slash commands (`/new`, `/models`, `/exit`).
+the terminal with clean Markdown rendering, tool-execution telemetry panels, active
+Gemini model status indicators, and slash commands (`/new`, `/models`, `/exit`).
 """
 
 from __future__ import annotations
@@ -28,12 +28,12 @@ console = Console()
 def _render_banner(session_id: str) -> None:
     """Display the branded Empório da Música welcome banner and CLI commands."""
     banner_md = (
-        "# 🎸 Empório da Música — Assistente Virtual (Campo Grande/MS)\n"
-        "*\"Sua música começa aqui\"* — Rua 14 de Maio, 3200 — Centro, Campo Grande/MS\n\n"
+        "# Empório da Música — Atendimento ao Cliente (Campo Grande, MS)\n"
+        "Rua 14 de Maio, 3200 — Centro, Campo Grande, MS\n\n"
         f"**Sessão Ativa:** `{session_id}`\n\n"
         "**Comandos disponíveis:**\n"
-        "- `/new`    — Inicia uma nova conversa (limpa/troca a sessão SQLite)\n"
-        "- `/models` — Exibe o status em tempo real da cascata de modelos Gemini (cooldowns)\n"
+        "- `/new`    — Inicia uma nova conversa (reinicia a sessão SQLite)\n"
+        "- `/models` — Exibe o status da cascata de modelos Gemini (cooldowns e disponibilidade)\n"
         "- `/exit`   — Encerra o atendimento no terminal"
     )
     console.print(
@@ -49,7 +49,7 @@ def _render_banner(session_id: str) -> None:
 def _render_models_table(agent: EmporioAgent, last_model: str | None = None) -> None:
     """Render a Rich table displaying the health and cooldown state of the Gemini model cascade."""
     table = Table(
-        title="🤖 Status da Cascata de Modelos Gemini (Free-Tier Fallback Router)",
+        title="Status da Cascata de Modelos Gemini (Fallback Router)",
         show_header=True,
         header_style="bold magenta",
     )
@@ -62,20 +62,20 @@ def _render_models_table(agent: EmporioAgent, last_model: str | None = None) -> 
     for item in agent.router.get_health_status():
         state = item["state"]
         if state == "ready":
-            status_badge = "[bold green]🟢 PRONTO[/bold green]"
+            status_badge = "[bold green][PRONTO][/bold green]"
         elif state == "cooldown":
-            status_badge = "[bold yellow]🟡 COOLDOWN[/bold yellow]"
+            status_badge = "[bold yellow][COOLDOWN][/bold yellow]"
         elif state == "unconfigured":
-            status_badge = "[dim]⚪ OPCIONAL[/dim]"
+            status_badge = "[dim][OPCIONAL][/dim]"
         else:
-            status_badge = "[bold red]🔴 DESATIVADO[/bold red]"
+            status_badge = "[bold red][DESATIVADO][/bold red]"
 
         cooldown_str = (
             f"{item['cooldown_remaining_s']:.1f}s"
             if item["cooldown_remaining_s"] > 0
             else "—"
         )
-        active_marker = "👈 [bold green]ATIVO[/bold green]" if item["model"] == last_model else ""
+        active_marker = "[bold green][ATIVO][/bold green]" if item["model"] == last_model else ""
 
         table.add_row(
             f"#{item['priority']}",
@@ -104,7 +104,7 @@ def _render_turn_telemetry(result: dict[str, Any]) -> None:
         console.print(
             Panel(
                 "\n".join(fb_lines),
-                title="[bold yellow]⚡ Rotação Automática de Modelo (Fallback)[/bold yellow]",
+                title="[bold yellow]Rotação Automática de Modelo (Fallback)[/bold yellow]",
                 border_style="yellow",
             )
         )
@@ -120,7 +120,7 @@ def _render_turn_telemetry(result: dict[str, Any]) -> None:
         console.print(
             Panel(
                 "\n".join(tc_lines),
-                title=f"[bold green]🛠️  Ferramentas Executadas ({len(tool_calls)})[/bold green]",
+                title=f"[bold green]Ferramentas Executadas ({len(tool_calls)})[/bold green]",
                 border_style="green",
             )
         )
@@ -130,7 +130,7 @@ def run_cli(initial_session_id: str = "cli-default") -> None:
     """Run the interactive Rich terminal loop for the Empório da Música agent."""
     if not GEMINI_API_KEY:
         console.print(
-            "[bold yellow]⚠️  Aviso:[/bold yellow] `GEMINI_API_KEY` não detectada no `.env`."
+            "[bold yellow]Aviso:[/bold yellow] `GEMINI_API_KEY` não detectada no `.env`."
         )
 
     agent = EmporioAgent()
@@ -141,9 +141,9 @@ def run_cli(initial_session_id: str = "cli-default") -> None:
 
     while True:
         try:
-            user_input = console.input("\n[bold bright_blue]🧑‍🎤 Você > [/bold bright_blue]").strip()
+            user_input = console.input("\n[bold bright_blue]Você > [/bold bright_blue]").strip()
         except (EOFError, KeyboardInterrupt):
-            console.print("\n[bold cyan]👋 Encerrando atendimento. Até logo![/bold cyan]")
+            console.print("\n[bold cyan]Atendimento encerrado. Até logo![/bold cyan]")
             break
 
         if not user_input:
@@ -151,7 +151,7 @@ def run_cli(initial_session_id: str = "cli-default") -> None:
 
         cmd = user_input.lower()
         if cmd in ("/exit", "/quit", "sair"):
-            console.print("[bold cyan]👋 Obrigado por visitar a Empório da Música! Até logo![/bold cyan]")
+            console.print("[bold cyan]Obrigado por consultar a Empório da Música. Até logo![/bold cyan]")
             break
 
         if cmd == "/new":
@@ -159,8 +159,8 @@ def run_cli(initial_session_id: str = "cli-default") -> None:
             session_id = f"cli-{uuid.uuid4().hex[:6]}"
             console.print(
                 Panel(
-                    f"Sessão reiniciada com sucesso! Novo `session_id`: [bold cyan]{session_id}[/bold cyan]",
-                    title="[bold cyan]🔄 Nova Conversa[/bold cyan]",
+                    f"Sessão reiniciada com sucesso. Novo `session_id`: [bold cyan]{session_id}[/bold cyan]",
+                    title="[bold cyan]Nova Conversa[/bold cyan]",
                     border_style="cyan",
                 )
             )
@@ -171,7 +171,7 @@ def run_cli(initial_session_id: str = "cli-default") -> None:
             continue
 
         with console.status(
-            "[bold cyan]🎸 Consultando catálogo, políticas e gerando resposta...[/bold cyan]",
+            "[bold cyan]Consultando catálogo e políticas da loja...[/bold cyan]",
             spinner="dots",
         ):
             try:
@@ -190,11 +190,11 @@ def run_cli(initial_session_id: str = "cli-default") -> None:
 
         _render_turn_telemetry(result)
 
-        model_badge = f"[bold magenta]🤖 Modelo: {last_model_used}[/bold magenta]"
+        model_badge = f"[bold magenta]Modelo: {last_model_used}[/bold magenta]"
         console.print(
             Panel(
                 Markdown(response_text),
-                title="[bold bright_cyan]🎸 Empório da Música[/bold bright_cyan]",
+                title="[bold bright_cyan]Empório da Música[/bold bright_cyan]",
                 subtitle=model_badge,
                 border_style="bright_cyan",
             )

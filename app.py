@@ -2,8 +2,8 @@
 
 Why: Provides an interactive web interface for evaluators and customers to test the
 stateful ReAct agent (`EmporioAgent`), inspect multi-model fallback cascade health,
-switch or reset SQLite-backed conversation sessions, trigger one-click evaluation
-scenarios, and audit deterministic tool invocations under every assistant turn.
+switch or reset SQLite-backed conversation sessions, inspect available products via
+a dedicated menu dialog, and audit deterministic tool invocations under every assistant turn.
 """
 
 from __future__ import annotations
@@ -15,28 +15,28 @@ from typing import Any
 import streamlit as st
 
 from src.agent import EmporioAgent
-from src.config import DB_PATH, GEMINI_API_KEY, GEMINI_MODEL_CASCADE
+from src.config import DB_PATH, GEMINI_API_KEY
 from src.database import get_connection, init_database
 
 QUICK_PROMPTS: list[tuple[str, str]] = [
     (
-        "🎸 Violões até R$ 1000",
+        "Violões até R$ 1.000",
         "Olá! Quais opções de violões disponíveis vocês têm custando até R$ 1000?",
     ),
     (
-        "🏷️ Preço do Takamine GD20",
+        "Preço do Takamine GD20",
         "Quanto custa o Takamine GD20? Ele ainda está naquela promoção de 12% de desconto?",
     ),
     (
-        "🔄 Política de Devolução",
+        "Política de Devolução",
         "Me arrependi da minha compra, posso devolver meu pedido? Como funciona a política de devolução?",
     ),
     (
-        "📍 Endereço, Contatos e Frete",
+        "Endereço, Contatos e Frete",
         "Qual o endereço da loja, telefones de contato, horário de funcionamento e opções de frete?",
     ),
     (
-        "🚫 Pedido de Encordoamento/Pedal",
+        "Consulta de Acessórios Avulsos",
         "Preciso comprar um jogo de cordas de aço 0.10, um cabo P10 e um pedal de overdrive. Vocês têm?",
     ),
 ]
@@ -172,6 +172,120 @@ def _reconstruct_ui_messages_from_db(session_id: str) -> list[dict[str, Any]]:
         conn.close()
 
 
+def _fetch_available_products() -> list[dict[str, Any]]:
+    """Query active, in-stock products from the v_product_catalog view.
+
+    Why: Provides exact, pre-filtered data for the store Menu button without
+    requiring the customer or evaluator to query through the ReAct loop first.
+    """
+    if not DB_PATH.exists():
+        conn = init_database(DB_PATH)
+        conn.close()
+
+    conn = get_connection(DB_PATH)
+    try:
+        cur = conn.cursor()
+        rows = cur.execute(
+            """
+            SELECT
+                product_id,
+                name,
+                category_name,
+                price_brl,
+                pix_price_brl,
+                active_discount_percent,
+                active_promo_description,
+                stock_quantity
+            FROM v_product_catalog
+            WHERE is_available = 1
+            ORDER BY category_name ASC, price_brl ASC;
+            """
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+@st.dialog("Menu de Produtos — Pronta Entrega", width="large")
+def _render_product_menu_dialog() -> None:
+    """Render interactive dialog showing all instruments currently available for purchase."""
+    products = _fetch_available_products()
+    if not products:
+        st.info("Nenhum instrumento disponível no momento.")
+        return
+
+    st.markdown(
+        f"Nosso catálogo possui **{len(products)} instrumentos disponíveis para compra imediata** "
+        "com pronta entrega na loja física (Campo Grande, MS) e envio para todo o Brasil."
+    )
+
+    categories = sorted(list({str(p["category_name"]) for p in products}))
+    col_cat, col_search = st.columns([1, 1])
+    with col_cat:
+        selected_cat = st.selectbox(
+            "Filtrar por Categoria",
+            options=["Todas as categorias"] + categories,
+            index=0,
+        )
+    with col_search:
+        search_query = st.text_input(
+            "Buscar por modelo ou marca",
+            placeholder="Ex.: Tagima, Fender, Giannini, Yamaha...",
+        ).strip().lower()
+
+    filtered = products
+    if selected_cat != "Todas as categorias":
+        filtered = [p for p in filtered if p["category_name"] == selected_cat]
+    if search_query:
+        filtered = [p for p in filtered if search_query in p["name"].lower()]
+
+    st.caption(f"{len(filtered)} modelo(s) exibido(s):")
+
+    formatted_rows = []
+    for item in filtered:
+        cond = (
+            f"{item['active_discount_percent']:.0f}% OFF ({item['active_promo_description']})"
+            if item.get("active_discount_percent")
+            else "Tabela regular (5% OFF no PIX)"
+        )
+        formatted_rows.append(
+            {
+                "ID": item["product_id"],
+                "Instrumento": item["name"],
+                "Categoria": item["category_name"],
+                "Preço Tabela": f"R$ {item['price_brl']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+                "Preço no PIX": f"R$ {item['pix_price_brl']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+                "Condição": cond,
+                "Estoque": item["stock_quantity"],
+            }
+        )
+
+    st.dataframe(
+        formatted_rows,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.markdown("---")
+    st.markdown("#### Consultar Instrumento no Atendimento")
+    product_dict = {
+        f"{p['name']} — R$ {p['price_brl']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."): p["name"]
+        for p in filtered
+    }
+    if product_dict:
+        selected_key = st.selectbox(
+            "Selecione um instrumento para consultar detalhes no chat:",
+            options=list(product_dict.keys()),
+        )
+        if st.button("Perguntar sobre este instrumento no chat", use_container_width=True):
+            chosen_name = product_dict[selected_key]
+            st.session_state.queued_prompt = (
+                f"Gostaria de saber mais sobre o instrumento {chosen_name}, "
+                "incluindo especificações técnicas, condições de parcelamento e frete."
+            )
+            st.rerun()
+
+
 def _init_session_state() -> None:
     """Initialize Streamlit session state variables for the agent, session ID, and telemetry."""
     if "agent" not in st.session_state:
@@ -197,19 +311,27 @@ def _init_session_state() -> None:
 
 
 def _render_sidebar() -> None:
-    """Render the Streamlit sidebar with cascade monitor, session controls, and quick prompts."""
+    """Render the Streamlit sidebar with catalog menu shortcut, cascade monitor, and session controls."""
     agent: EmporioAgent = st.session_state.agent
 
     with st.sidebar:
-        st.markdown("## ⚙️ Painel de Controle & Telemetria")
+        st.markdown("## Painel de Controle e Telemetria")
 
         if not GEMINI_API_KEY:
             st.error(
-                "⚠️ `GEMINI_API_KEY` não encontrada no `.env`. Configure sua chave para executar chamadas ao Gemini."
+                "Aviso: `GEMINI_API_KEY` não encontrada no `.env`. "
+                "Configure sua chave para executar chamadas aos modelos Gemini."
             )
 
-        # 1. Session Management
-        st.markdown("### 💬 Gerenciamento de Sessão")
+        # 1. Catalog Menu Button
+        st.markdown("### Catálogo")
+        if st.button("Abrir Menu de Produtos", use_container_width=True, type="primary"):
+            _render_product_menu_dialog()
+
+        st.divider()
+
+        # 2. Session Management
+        st.markdown("### Gerenciamento de Sessão")
         saved_sessions = _list_saved_sessions()
         for sid in saved_sessions:
             if sid not in st.session_state.known_sessions:
@@ -218,7 +340,7 @@ def _render_sidebar() -> None:
             st.session_state.known_sessions.insert(0, st.session_state.session_id)
 
         selected_session = st.selectbox(
-            "Sessão Ativa (`session_id`)",
+            "Sessão Ativa (session_id)",
             options=st.session_state.known_sessions,
             index=st.session_state.known_sessions.index(st.session_state.session_id),
         )
@@ -232,27 +354,27 @@ def _render_sidebar() -> None:
 
         col_new, col_clear = st.columns(2)
         with col_new:
-            if st.button("➕ Nova Conversa", use_container_width=True):
+            if st.button("Nova Conversa", use_container_width=True):
                 new_sid = f"sessao-{uuid.uuid4().hex[:6]}"
                 st.session_state.known_sessions.insert(0, new_sid)
                 st.session_state.session_id = new_sid
                 st.session_state.messages_by_session[new_sid] = []
                 st.rerun()
         with col_clear:
-            if st.button("🗑️ Limpar Atual", use_container_width=True):
+            if st.button("Limpar Conversa", use_container_width=True):
                 agent.clear_session(st.session_state.session_id)
                 st.session_state.messages_by_session[st.session_state.session_id] = []
                 st.rerun()
 
         st.divider()
 
-        # 2. Active Model Cascade Monitor
-        st.markdown("### 🤖 Cascata de Modelos Gemini")
+        # 3. Active Model Cascade Monitor
+        st.markdown("### Cascata de Modelos Gemini")
         last_model = st.session_state.last_model_used
         if last_model:
             st.success(f"**Último Turno:** `{last_model}`")
         else:
-            st.info("**Último Turno:** *Aguardando 1ª mensagem*")
+            st.info("**Último Turno:** *Aguardando primeira mensagem*")
 
         health_list = agent.router.get_health_status()
         for item in health_list:
@@ -262,22 +384,22 @@ def _render_sidebar() -> None:
             rem_s = item["cooldown_remaining_s"]
 
             is_last = m_name == last_model
-            active_badge = " 👈 *(Ativo)*" if is_last else ""
+            active_badge = " [Ativo]" if is_last else ""
 
             if state == "ready":
-                st.markdown(f"`#{prio}` 🟢 **{m_name}** — Pronto{active_badge}")
+                st.markdown(f"`#{prio}` **[Pronto]** {m_name}{active_badge}")
             elif state == "cooldown":
                 st.markdown(
-                    f"`#{prio}` 🟡 **{m_name}** — Cooldown ({rem_s:.0f}s){active_badge}"
+                    f"`#{prio}` **[Cooldown: {rem_s:.0f}s]** {m_name}{active_badge}"
                 )
             elif state == "unconfigured":
-                st.markdown(f"`#{prio}` ⚪ **{m_name}** — Opcional (Não configurado)")
+                st.markdown(f"`#{prio}` **[Opcional]** {m_name} (Não configurado)")
             else:
-                st.markdown(f"`#{prio}` 🔴 **{m_name}** — Desativado")
+                st.markdown(f"`#{prio}` **[Desativado]** {m_name}")
 
         if st.session_state.fallback_history:
             with st.expander(
-                f"⚡ Eventos de Fallback ({len(st.session_state.fallback_history)})",
+                f"Eventos de Fallback ({len(st.session_state.fallback_history)})",
                 expanded=False,
             ):
                 st.json(st.session_state.fallback_history)
@@ -286,9 +408,9 @@ def _render_sidebar() -> None:
 
         st.divider()
 
-        # 3. Quick Prompts for the Evaluator
-        st.markdown("### ⚡ Prompts Rápidos (Avaliador)")
-        st.caption("Clique para enviar automaticamente ao agente:")
+        # 4. Quick Prompts for the Evaluator
+        st.markdown("### Cenários de Teste Rápidos")
+        st.caption("Clique para carregar a pergunta no atendimento:")
         for label, prompt_text in QUICK_PROMPTS:
             if st.button(label, use_container_width=True):
                 st.session_state.queued_prompt = prompt_text
@@ -301,14 +423,14 @@ def _render_telemetry_expander(msg: dict[str, Any]) -> None:
     tool_calls: list[dict[str, Any]] = msg.get("tool_calls") or []
     fallback_events: list[dict[str, Any]] = msg.get("fallback_events") or []
 
-    with st.expander("🔍 Telemetria da Resposta (Tools & Modelo)", expanded=False):
+    with st.expander("Telemetria da Resposta (Ferramentas e Modelo)", expanded=False):
         col1, col2, col3 = st.columns(3)
         col1.metric("Modelo Utilizado", model_used)
-        col2.metric("Tools Executadas", len(tool_calls))
+        col2.metric("Ferramentas Executadas", len(tool_calls))
         col3.metric("Fallbacks no Turno", len(fallback_events))
 
         if tool_calls:
-            st.markdown("#### 🛠️ Chamadas de Ferramentas (`tool_calls`)")
+            st.markdown("#### Chamadas de Ferramentas (tool_calls)")
             for idx, tc in enumerate(tool_calls, start=1):
                 st.markdown(
                     f"**{idx}. `{tc.get('name', 'unknown')}`** "
@@ -316,36 +438,41 @@ def _render_telemetry_expander(msg: dict[str, Any]) -> None:
                 )
                 st.markdown("**Argumentos:**")
                 st.json(tc.get("args", {}))
-                st.markdown("**Saída Determinística (JSON):**")
+                st.markdown("**Retorno Estruturado:**")
                 st.json(tc.get("result", {}))
         else:
             st.caption(
-                "Nenhuma ferramenta precisou ser invocada neste turno (resposta direta/guardrail)."
+                "Nenhuma ferramenta precisou ser invocada neste turno (resposta direta com base nas políticas)."
             )
 
         if fallback_events:
-            st.markdown("#### ⚠️ Eventos de Fallback (`fallback_events`)")
+            st.markdown("#### Eventos de Fallback (fallback_events)")
             st.json(fallback_events)
 
 
 def main() -> None:
     """Entry point for the Streamlit Chat UI."""
     st.set_page_config(
-        page_title="Empório da Música — Assistente Virtual",
-        page_icon="🎸",
+        page_title="Empório da Música — Atendimento ao Cliente",
         layout="wide",
     )
 
     _init_session_state()
     _render_sidebar()
 
-    # Branded Header
-    st.title("🎸 Empório da Música — Assistente Virtual (Campo Grande/MS)")
-    st.caption(
-        "Atendimento inteligente especializado em instrumentos musicais | "
-        "Rua 14 de Maio, 3200 — Centro, Campo Grande/MS | "
-        "ReAct Agent + SQLite + Gemini Multi-Model Fallback"
-    )
+    # Branded Header with Action Button
+    col_header, col_action = st.columns([3, 1])
+    with col_header:
+        st.title("Empório da Música — Atendimento ao Cliente")
+        st.caption(
+            "Loja especializada em instrumentos musicais | "
+            "Rua 14 de Maio, 3200 — Centro, Campo Grande, MS | "
+            "ReAct Agent + SQLite + Gemini Multi-Model Fallback"
+        )
+    with col_action:
+        st.write("")
+        if st.button("Menu de Produtos", use_container_width=True, type="primary"):
+            _render_product_menu_dialog()
 
     current_sid: str = st.session_state.session_id
     messages: list[dict[str, Any]] = st.session_state.messages_by_session.setdefault(
@@ -354,22 +481,22 @@ def main() -> None:
 
     # Welcome message when conversation is empty
     if not messages:
-        with st.chat_message("assistant", avatar="🎸"):
+        with st.chat_message("assistant"):
             st.markdown(
-                "Olá! Seja muito bem-vindo(a) à **Empório da Música** (*Sua música começa aqui*! 🎶).\n\n"
-                "Sou o assistente virtual da nossa loja em Campo Grande/MS. Posso ajudar você a:\n"
-                "- 🎸 **Consultar nosso catálogo** de instrumentos musicais, preços, especificações e estoque;\n"
-                "- 💳 **Simular pagamentos** (desconto de 5% no PIX, parcelamento sem juros em até 12x e pagamento combinado);\n"
-                "- 📦 **Acompanhar seus pedidos**, códigos de rastreio e prazos de troca ou garantia;\n"
-                "- 📋 **Tirar dúvidas sobre nossas políticas**, endereço, horários e frete.\n\n"
+                "Olá! Seja bem-vindo à **Empório da Música** (Campo Grande, MS).\n\n"
+                "Nosso atendimento pode ajudar você com:\n"
+                "- **Consulta ao catálogo** de instrumentos musicais, preços e estoque para pronta entrega;\n"
+                "- **Condições de pagamento** (desconto de 5% à vista no PIX, parcelamento em até 12x sem juros e pagamento combinado);\n"
+                "- **Acompanhamento de pedidos**, código de rastreamento e prazos de garantia ou devolução;\n"
+                "- **Informações da loja**, horários de atendimento, endereço físico e prazos de frete.\n\n"
+                "Para visualizar todos os instrumentos disponíveis para pronta entrega, clique no botão **Menu de Produtos** acima.\n\n"
                 "Como posso ajudar você hoje?"
             )
 
     # Render conversation history
     for msg in messages:
         role = msg.get("role", "user")
-        avatar = "🎸" if role == "assistant" else "🧑‍🎤"
-        with st.chat_message(role, avatar=avatar):
+        with st.chat_message(role):
             st.markdown(msg.get("content", ""))
             if role == "assistant":
                 _render_telemetry_expander(msg)
@@ -388,13 +515,13 @@ def main() -> None:
     if active_prompt:
         # Render user message immediately
         messages.append({"role": "user", "content": active_prompt})
-        with st.chat_message("user", avatar="🧑‍🎤"):
+        with st.chat_message("user"):
             st.markdown(active_prompt)
 
         # Execute ReAct loop via EmporioAgent
         agent: EmporioAgent = st.session_state.agent
-        with st.chat_message("assistant", avatar="🎸"):
-            with st.spinner("Consultando catálogo, políticas e processando resposta..."):
+        with st.chat_message("assistant"):
+            with st.spinner("Consultando catálogo e políticas da loja..."):
                 try:
                     result = agent.chat(
                         user_message=active_prompt,
@@ -402,7 +529,7 @@ def main() -> None:
                     )
                     assistant_text = (
                         result.get("response")
-                        or "Desculpe, não consegui gerar uma resposta no momento."
+                        or "Não foi possível gerar uma resposta no momento."
                     )
                     model_used = result.get("model_used", "")
                     tool_calls = result.get("tool_calls", [])
