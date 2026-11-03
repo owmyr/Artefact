@@ -50,6 +50,20 @@ Here is the executive summary of the core technical choices powering this agent:
 
 ---
 
+### Decisões Técnicas (Technical Decisions Matrix)
+
+Mapeamento direto das decisões tomadas conforme os 5 tópicos orientadores do desafio técnico:
+
+| Decisão | Orientações do Desafio | Escolha do Projeto & Descrição Simples |
+| :--- | :--- | :--- |
+| **Framework(s) / abordagem do agente** | *RAG, function calling, ReAct, agente de SQL, híbrido, etc.* | **Híbrido (Manual ReAct Loop + Pydantic Function Calling + Section-Preserved RAG)**: O agente executa um ciclo de raciocínio ReAct explícito (`max_iterations=5`) sem intermediários pesados, acionando ferramentas determinísticas validadas via Pydantic para catálogo, cálculos financeiros e políticas, garantindo precisão matemática e zero alucinação. |
+| **Modelo e Provedor** | *Você pode escolher modelos pagos ou grátis, locais ou via API.* | **Google Gemini (google-genai SDK) com Roteador de Fallback em Cascata de 7 Modelos + Provedor Externo**: Camada gratuita do Google AI Studio com rotação automática (`gemini-3.8-flash` até `gemini-2.5-flash-lite`) para contornar limites de taxa (HTTP 429/503). Como rede de segurança adicional, suporta fallback para **Groq Cloud** ou **Ollama Remoto** sem custo. |
+| **Interface de interação** | *CLI, notebook, API, ou UI simples — o foco é o agente funcionando corretamente.* | **Streamlit Web UI (Online & Local) + Rich Terminal CLI Opcional**: Interface web interativa pronta para teste online com 1 clique ([olmir-artefact.streamlit.app](https://olmir-artefact.streamlit.app/)), com barra lateral de telemetria em tempo real, cenários de teste rápidos e botão de *Menu de Produtos*, além de uma CLI de terminal rica para desenvolvedores (`cli.py`). |
+| **Persistência do histórico de conversa** | *Implemente se fizer sentido para a experiência do usuário.* | **Persistência Relacional em SQLite (`chat_history` por `session_id`)**: Todas as mensagens de usuário, chamadas de ferramentas e respostas são armazenadas em banco relacional local, com suporte a troca/limpeza de sessões e sanitização do histórico para continuidade segura entre trocas de modelos. |
+| **Tratamento dos dados** | *Faça o tratamento de dados que julgar necessário.* | **View Relacional SQL (`v_product_catalog`) + Pydantic + Normalização Textual**: Normalização antecipada dos 6 CSVs e do PDF com regras de negócio em SQL: deduplicação de promoções, disponibilidade estrita (`status='active' AND stock_quantity > 0`), detecção de categorias vazias, tratamento de promoções expiradas, cálculo de PIX não-cumulativo e busca sem distinção de acentos (`NFKD`). |
+
+---
+
 ## Table of Contents
 
 - [Architecture Summary: Core Technical Decisions](#architecture-summary-core-technical-decisions)
