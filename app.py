@@ -19,6 +19,7 @@ import uuid
 from typing import Any
 
 import streamlit as st
+import streamlit.config as _st_cfg
 
 from src.agent import EmporioAgent
 from src.config import DB_PATH, GEMINI_API_KEY
@@ -83,12 +84,33 @@ def _queue_prompt_callback(prompt_text: str, ensure_open: bool = True) -> None:
         st.session_state.chat_view_mode = "popup"
 
 
+@st.cache_data(show_spinner=False)
 def _load_base64_images() -> dict[str, str]:
-    """Load local instrument photography and return base64 data URIs.
+    """Load local instrument photography paths or base64 data URIs.
 
-    Why: Guarantees zero-latency, offline-capable image rendering without external
-    network dependencies or broken image paths.
+    Why: If `server.enableStaticServing` is enabled in `.streamlit/config.toml`,
+    returns lightweight HTTP static asset URLs (`app/static/images/...`), reducing
+    WebSocket message payloads by 99% and enabling standard browser HTTP caching.
+    Falls back to cached base64 URIs when static serving is not configured.
     """
+    image_filenames = {
+        "electric_guitar": "electric_guitar.jpg",
+        "acoustic_guitar": "acoustic_guitar.jpg",
+        "synthesizer": "synthesizer.jpg",
+        "bass_guitar": "bass_guitar.jpg",
+        "fender_guitar": "fender_guitar.jpg",
+        "keyboard_synth": "keyboard_synth.jpg",
+    }
+
+    try:
+        if _st_cfg.get_option("server.enableStaticServing"):
+            return {
+                key: f"app/static/images/{fn}"
+                for key, fn in image_filenames.items()
+            }
+    except Exception:
+        pass
+
     image_map = {
         "electric_guitar": "static/images/electric_guitar.jpg",
         "acoustic_guitar": "static/images/acoustic_guitar.jpg",
@@ -249,6 +271,7 @@ def _get_instrument_card_data(
     }
 
 
+@st.cache_data(ttl=15, show_spinner=False)
 def _list_saved_sessions() -> list[str]:
     """Query distinct `session_id` values persisted in SQLite `chat_history`."""
     if not DB_PATH.exists():
@@ -374,6 +397,7 @@ def _reconstruct_ui_messages_from_db(session_id: str) -> list[dict[str, Any]]:
         conn.close()
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def _fetch_available_products() -> list[dict[str, Any]]:
     """Query active, in-stock products from `v_product_catalog` with curated ordering."""
     if not DB_PATH.exists():
@@ -726,9 +750,10 @@ def _inject_design_system_styles() -> None:
     """Inject deterministic light-mode CSS tokens, popup elevation, and `.st-key-*` rules."""
     st.markdown(
         """
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
         :root, html, body, .stApp {
             color-scheme: light !important;
             --canvas-bg: #F5F3F0;
@@ -760,11 +785,151 @@ def _inject_design_system_styles() -> None:
 
         header[data-testid="stHeader"] {
             background-color: transparent !important;
-            height: 2rem !important;
+            height: 3.5rem !important;
+            z-index: 9999 !important;
+            overflow: visible !important;
+            pointer-events: none !important;
+        }
+
+        header[data-testid="stHeader"] button,
+        header[data-testid="stHeader"] [data-testid="stExpandSidebarButton"],
+        header[data-testid="stHeader"] [data-testid="collapsedControl"],
+        header[data-testid="stHeader"] [data-testid^="stBaseButton-"] {
+            pointer-events: auto !important;
+        }
+
+        /* -------------------------------------------------------------
+           Prominent Telemetry Sidebar Collapse / Uncollapse (">>") Button
+        ------------------------------------------------------------- */
+        [data-testid="stExpandSidebarButton"],
+        button[data-testid="stExpandSidebarButton"],
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarCollapsedControl"] {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: #FFFFFF !important;
+            color: #18181B !important;
+            border: 1.5px solid #18181B !important;
+            border-radius: 9999px !important;
+            box-shadow: 0 4px 14px rgba(24, 24, 27, 0.12) !important;
+            padding: 0.4rem 0.9rem !important;
+            min-height: 2.3rem !important;
+            margin-top: 0.55rem !important;
+            margin-left: 0.75rem !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            z-index: 999999 !important;
+            cursor: pointer !important;
+            transition: all 0.18s ease-in-out !important;
+        }
+
+        button[data-testid="stExpandSidebarButton"]::after,
+        [data-testid="collapsedControl"]::after {
+            content: "Telemetria";
+            font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
+            font-size: 0.76rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.04em !important;
+            text-transform: uppercase !important;
+            margin-left: 0.35rem !important;
+            color: #18181B !important;
+        }
+
+        [data-testid="stExpandSidebarButton"]:hover,
+        button[data-testid="stExpandSidebarButton"]:hover,
+        [data-testid="collapsedControl"]:hover {
+            background-color: #18181B !important;
+            color: #FFFFFF !important;
+            border-color: #18181B !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 6px 18px rgba(24, 24, 27, 0.2) !important;
+        }
+
+        [data-testid="stExpandSidebarButton"]:hover::after,
+        button[data-testid="stExpandSidebarButton"]:hover::after,
+        [data-testid="collapsedControl"]:hover::after {
+            color: #FFFFFF !important;
+        }
+
+        [data-testid="stExpandSidebarButton"] svg,
+        [data-testid="stExpandSidebarButton"] span,
+        button[data-testid="stExpandSidebarButton"] svg,
+        button[data-testid="stExpandSidebarButton"] span {
+            color: #18181B !important;
+            fill: #18181B !important;
+            font-size: 1.25rem !important;
+            font-weight: 800 !important;
+        }
+
+        [data-testid="stExpandSidebarButton"]:hover svg,
+        [data-testid="stExpandSidebarButton"]:hover span,
+        button[data-testid="stExpandSidebarButton"]:hover svg,
+        button[data-testid="stExpandSidebarButton"]:hover span {
+            color: #FFFFFF !important;
+            fill: #FFFFFF !important;
+        }
+
+        /* Prominent Collapse Button inside Sidebar Header ("<<") */
+        [data-testid="stSidebarCollapseButton"],
+        button[data-testid="stSidebarCollapseButton"] {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: #FFFFFF !important;
+            color: #18181B !important;
+            border: 1.5px solid #18181B !important;
+            border-radius: 9999px !important;
+            box-shadow: 0 2px 8px rgba(24, 24, 27, 0.08) !important;
+            padding: 0.35rem 0.65rem !important;
+            min-height: 2.1rem !important;
+            opacity: 1 !important;
+            cursor: pointer !important;
+            transition: all 0.16s ease !important;
+        }
+
+        button[data-testid="stSidebarCollapseButton"]::after {
+            content: "Recolher";
+            font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
+            font-size: 0.72rem !important;
+            font-weight: 700 !important;
+            margin-left: 0.35rem !important;
+            color: #18181B !important;
+        }
+
+        [data-testid="stSidebarCollapseButton"]:hover,
+        button[data-testid="stSidebarCollapseButton"]:hover {
+            background-color: #18181B !important;
+            color: #FFFFFF !important;
+            border-color: #18181B !important;
+            transform: scale(1.05) !important;
+        }
+
+        [data-testid="stSidebarCollapseButton"]:hover::after,
+        button[data-testid="stSidebarCollapseButton"]:hover::after {
+            color: #FFFFFF !important;
+        }
+
+        [data-testid="stSidebarCollapseButton"] svg,
+        [data-testid="stSidebarCollapseButton"] span,
+        button[data-testid="stSidebarCollapseButton"] svg,
+        button[data-testid="stSidebarCollapseButton"] span {
+            color: #18181B !important;
+            fill: #18181B !important;
+            font-size: 1.15rem !important;
+            font-weight: 800 !important;
+        }
+
+        [data-testid="stSidebarCollapseButton"]:hover svg,
+        [data-testid="stSidebarCollapseButton"]:hover span,
+        button[data-testid="stSidebarCollapseButton"]:hover svg,
+        button[data-testid="stSidebarCollapseButton"]:hover span {
+            color: #FFFFFF !important;
+            fill: #FFFFFF !important;
         }
 
         [data-testid="stMainBlockContainer"] {
-            padding-top: 0.5rem !important;
+            padding-top: 1.15rem !important;
             padding-bottom: 3rem !important;
             max-width: 1460px !important;
         }
@@ -1632,7 +1797,6 @@ def _render_chat_popup_contents(
     chat_val = st.chat_input(
         "Digite sua dúvida sobre instrumentos, preços, pedidos ou políticas...",
         key=f"maestro_chat_input_{current_mode}",
-        submit_mode="disable",
     )
     if chat_val:
         st.session_state.pending_prompt = chat_val
