@@ -282,8 +282,11 @@ def _render_cover_and_executive_summary(pdf: SubmissionPDF) -> None:
     )
     pdf.bullet_item(
         "User Interfaces (`app.py` & `cli.py`)",
-        "Streamlit Web UI with live model-cascade telemetry sidebar, session switcher, and per-turn tool "
-        "audit expanders, plus an interactive Rich CLI (`/models`, `/new`, `/exit`).",
+        "Streamlit Web UI featuring an Apple-inspired minimalist instrument storefront (responsive 3-column "
+        "catalog displaying all 61 in-stock instruments with photography, technical specifications, and finish "
+        "swatches) paired with Maestro AI (a malleable chat widget supporting floating popup, full-viewport "
+        "modal dialog, and collapsed launcher states, live typing indicators, and per-turn tool telemetry expanders), "
+        "plus an interactive Rich CLI (`/models`, `/new`, `/exit`).",
     )
     pdf.bullet_item(
         "Manual ReAct Agent + SQLite Memory (`src/agent.py`)",

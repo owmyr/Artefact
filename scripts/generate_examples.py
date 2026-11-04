@@ -692,9 +692,16 @@ def _format_scenario_markdown(
         lines.append(f"- **Ferramentas Invocadas (`tool_calls`):** `{len(tool_calls)}`")
 
         if fallback_events:
+            event_summaries = []
+            for ev in fallback_events:
+                m = ev.get("model", "unknown")
+                code = ev.get("status_code", 429)
+                reason = ev.get("reason", "error")
+                event_summaries.append(f"{m} [HTTP {code}: {reason}]")
+            chain_str = " -> ".join(event_summaries) + f" -> {model_used} [OK]"
             lines.append(
                 f"- **Eventos de Fallback (`fallback_events`):** `{len(fallback_events)}` "
-                f"(`{json.dumps(fallback_events, ensure_ascii=False)}`)"
+                f"(`{chain_str}`)"
             )
         else:
             lines.append("- **Eventos de Fallback (`fallback_events`):** Nenhum (`0`)")

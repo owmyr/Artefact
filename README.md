@@ -36,8 +36,9 @@ Here is the executive summary of the core technical choices powering this agent:
 3. **Precomputed Relational View for Catalog & Stock Invariants (`v_product_catalog`)**
    - A dedicated SQL view normalizes raw CSV data upfront. It deduplicates promotions, enforces that items are available only when `status == 'active' AND stock_quantity > 0`, and calculates promotional and PIX prices side by side.
 
-4. **Interactive In-Stock Product Menu**
-   - In addition to conversational search, the web interface provides a dedicated **Menu de Produtos** button that presents all 61 in-stock instruments across all 6 active categories with filters, pricing, and 1-click query capabilities.
+4. **Minimalist E-Commerce Storefront & Malleable Maestro AI Chat Popup**
+   - In addition to conversational search, the web interface (`app.py`) provides an Apple-inspired musical instrument storefront on a warm `#F5F3F0` background displaying all 61 available instruments with local photography, live category filters, search, in-stock toggle, wood/pickup specifications, finish swatches, and 1-click consultation buttons.
+   - Paired with **Maestro AI**, a malleable floating chat widget supporting three responsive view modes: floating popup window, expanded full-screen modal, and discrete collapsed launcher badge, with instant optimistic message rendering and live typing indicators.
 
 5. **Normative Section-Preserved Policy Retrieval**
    - Rather than fragmenting PDF policies into arbitrary token chunks, all 10 store policy sections are preserved intact as Markdown documents. This ensures shipping SLA matrices, installment rules, and official contact channels remain complete and uncorrupted.
@@ -58,7 +59,7 @@ Mapeamento direto das decisões tomadas conforme os 5 tópicos orientadores do d
 | :--- | :--- | :--- |
 | **Framework(s) / abordagem do agente** | *RAG, function calling, ReAct, agente de SQL, híbrido, etc.* | **Híbrido (Manual ReAct Loop + Pydantic Function Calling + Section-Preserved RAG)**: O agente executa um ciclo de raciocínio ReAct explícito (`max_iterations=5`) sem intermediários pesados, acionando ferramentas determinísticas validadas via Pydantic para catálogo, cálculos financeiros e políticas, garantindo precisão matemática e zero alucinação. |
 | **Modelo e Provedor** | *Você pode escolher modelos pagos ou grátis, locais ou via API.* | **Google Gemini (google-genai SDK) com Roteador de Fallback em Cascata de 7 Modelos + Provedor Externo**: Camada gratuita do Google AI Studio com rotação automática (`gemini-3.8-flash` até `gemini-2.5-flash-lite`) para contornar limites de taxa (HTTP 429/503). Como rede de segurança adicional, suporta fallback para **Groq Cloud** ou **Ollama Remoto** sem custo. |
-| **Interface de interação** | *CLI, notebook, API, ou UI simples — o foco é o agente funcionando corretamente.* | **Streamlit Web UI (Online & Local) + Rich Terminal CLI Opcional**: Interface web interativa pronta para teste online com 1 clique ([olmir-artefact.streamlit.app](https://olmir-artefact.streamlit.app/)), com barra lateral de telemetria em tempo real, cenários de teste rápidos e botão de *Menu de Produtos*, além de uma CLI de terminal rica para desenvolvedores (`cli.py`). |
+| **Interface de interação** | *CLI, notebook, API, ou UI simples — o foco é o agente funcionando corretamente.* | **Streamlit Storefront & Maestro AI (Online & Local) + Rich Terminal CLI**: Vitrine de e-commerce minimalista com design inspirado na Apple exibindo os 61 instrumentos em pronta entrega com fotos locais, filtros e especificações, acompanhada pelo assistente flutuante maleável **Maestro AI** (modos popup, modal expandido e badge minimizado), telemetria inline e cenários de teste de 1 clique ([olmir-artefact.streamlit.app](https://olmir-artefact.streamlit.app/)), além de CLI rica para desenvolvedores (`cli.py`). |
 | **Persistência do histórico de conversa** | *Implemente se fizer sentido para a experiência do usuário.* | **Persistência Relacional em SQLite (`chat_history` por `session_id`)**: Todas as mensagens de usuário, chamadas de ferramentas e respostas são armazenadas em banco relacional local, com suporte a troca/limpeza de sessões e sanitização do histórico para continuidade segura entre trocas de modelos. |
 | **Tratamento dos dados** | *Faça o tratamento de dados que julgar necessário.* | **View Relacional SQL (`v_product_catalog`) + Pydantic + Normalização Textual**: Normalização antecipada dos 6 CSVs e do PDF com regras de negócio em SQL: deduplicação de promoções, disponibilidade estrita (`status='active' AND stock_quantity > 0`), detecção de categorias vazias, tratamento de promoções expiradas, cálculo de PIX não-cumulativo e busca sem distinção de acentos (`NFKD`). |
 
@@ -99,7 +100,7 @@ The agent assists beginner, intermediate, and professional musicians in **Brazil
 flowchart TB
     subgraph Interfaces["User Interfaces"]
         CLOUD["Live Cloud Web UI<br/>(olmir-artefact.streamlit.app)"]
-        UI["Local Streamlit Web UI (app.py)<br/>Chat + Product Menu + Telemetry Sidebar"]
+        UI["Streamlit Storefront & Chat (app.py)<br/>E-Commerce Grid + Maestro AI Popup + Telemetry"]
         CLI["Optional Rich Terminal CLI (cli.py)<br/>Interactive Chat + /models & /new"]
         GEN["Transcript Generator<br/>(scripts/generate_examples.py)"]
     end
@@ -206,10 +207,10 @@ The fastest way to evaluate the agent is via the hosted **Streamlit Community Cl
 
 - **URL:** **[https://olmir-artefact.streamlit.app/](https://olmir-artefact.streamlit.app/)**
 - **Features Available Online:**
-  - **Interactive Multi-Turn Chat (`pt-BR`):** Full conversation memory backed by SQLite.
-  - **In-Stock Product Menu:** Dedicated button in the header and sidebar that opens an interactive catalog modal displaying all 61 available instruments with category filters, pricing, and 1-click chat consultation.
+  - **Minimalist Storefront & Product Grid:** Browse all 61 available instruments with category filters, live search, in-stock toggle, wood/pickup specifications, finish swatches, and 1-click consultation buttons.
+  - **Malleable Maestro AI Chat Widget (`pt-BR`):** Floating chat widget supporting regular popup, full-screen expanded modal, and collapsed launcher modes, with instant message feedback and live typing indicators.
   - **5 Evaluator Test Scenarios:** One-click buttons in the left sidebar covering the assessment scenarios (Violões <= R$ 1.000, Takamine GD20 expired promo, Return Policy & LGPD, Store Address/Contacts/Freight, and Out-of-Scope Accessories refusal).
-  - **Live Telemetry Sidebar & Expanders:** Real-time monitoring of the 7-model Gemini cascade (`[Pronto]`, `[Cooldown]`, `[Desativado]`) and expandable JSON inspection of every `tool_call` and deterministic output.
+  - **Live Telemetry Sidebar & Inline Expanders:** Real-time monitoring of the 7-model Gemini cascade (`[Pronto]`, `[Cooldown]`, `[Desativado]`) and expandable JSON inspection of every `tool_call` and deterministic output directly within conversation turns.
 
 ---
 
@@ -452,8 +453,9 @@ Este repositório apresenta o **Agente de Atendimento ao Cliente** desenvolvido 
 
 ### Principais Diferenciais Técnicos
 1. **Roteador Multi-Modelo com Fallback Automático (`GeminiFallbackRouter`):** Rotaciona chamadas automaticamente entre **7 modelos Gemini** ordenados por capacidade (`gemini-3.8-flash` -> `gemini-3.6-flash` -> `gemini-3-flash-preview` -> `gemini-3.5-flash-lite` -> `gemini-3.1-flash-lite` -> `gemini-2.5-flash` -> `gemini-2.5-flash-lite`) ao detectar erros `HTTP 429` (limite de requisições da camada gratuita), `HTTP 503` (sobrecarga) ou `HTTP 404` (indisponibilidade), aplicando cooldowns por modelo e sanitizando o histórico (`Part.from_function_call` + preservação de `thought_signature`) para não reexecutar ferramentas já rodadas no meio do turno. Conta ainda com fallback externo opcional para **Groq Cloud** ou **Ollama local/remoto** caso a cota da API Gemini se esgote.
-2. **Camada de Dados e Ferramentas Determinísticas (`v_product_catalog` + `src/tools.py`):**
-   - **Menu Interativo de Produtos:** Botão dedicado na interface web que lista todos os 61 instrumentos com pronta entrega imediata, com filtros por categoria e busca textual.
+2. **Camada de Dados, Vitrine E-Commerce e Ferramentas Determinísticas (`v_product_catalog` + `src/tools.py`):**
+   - **Vitrine Minimalista e Menu de Produtos:** Interface web em estética inspirada na Apple exibindo os 61 instrumentos com pronta entrega imediata, com fotos locais em alta resolução, filtros por categoria, busca textual, especificações técnicas, seletor de acabamento e botão de consulta rápida no chat com 1 clique.
+   - **Assistente Flutuante Maleável Maestro AI:** Widget de chat inteligente com modos de visualização flexíveis (popup sobre a vitrine, modal expandido em tela cheia ou botão minimizado), feedback instantâneo de digitação e telemetria por turno.
    - **Disponibilidade Estrita:** Apenas produtos com `status = 'active'` e `stock_quantity > 0` são ofertados para pronta entrega. Itens sem estoque (`ID 96`), descontinuados (`ID 113`, `ID 136`), em pré-lançamento (`ID 130`) ou categorias vazias (`IDs 6, 7 e 8`) retornam automaticamente até **3 alternativas disponíveis** na mesma categoria e faixa de preço (Seção 7.3).
    - **Promoções e PIX Não-Cumulativo:** Deduplica `promotions.csv`, diferencia as 4 promoções ativas (`IDs 90, 94, 121, 127`) das 21 promoções expiradas (ex.: `Takamine GD20 ID 95`), aplica o desconto de 5% no PIX apenas quando não há promoção ativa (Seção 6.2) e calcula o parcelamento sem juros em até 12x respeitando as parcelas mínimas de R$ 50 (1x–3x), R$ 80 (4x–6x) e R$ 100 (7x–12x), além de *Split Payment* para compras acima de R$ 2.000,00 (Seção 3.1).
    - **LGPD e Prazos CDC:** Exige validação de titularidade antes de exibir dados de pedidos (Seção 9) e calcula de forma exata os prazos de 7 dias corridos (arrependimento/preferência), 30 dias (troca por defeito na loja) e 90 dias (garantia legal).
