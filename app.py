@@ -87,31 +87,11 @@ def _queue_prompt_callback(prompt_text: str, ensure_open: bool = True) -> None:
 
 @st.cache_data(show_spinner=False)
 def _load_base64_images() -> dict[str, str]:
-    """Load local instrument photography paths or base64 data URIs.
+    """Load local instrument photography and return base64 data URIs.
 
-    Why: If `server.enableStaticServing` is enabled in `.streamlit/config.toml`,
-    returns lightweight HTTP static asset URLs (`app/static/images/...`), reducing
-    WebSocket message payloads by 99% and enabling standard browser HTTP caching.
-    Falls back to cached base64 URIs when static serving is not configured.
+    Why: Guarantees zero-latency, offline-capable image rendering without external
+    network dependencies, server restart requirements, or broken static HTTP routes.
     """
-    image_filenames = {
-        "electric_guitar": "electric_guitar.jpg",
-        "acoustic_guitar": "acoustic_guitar.jpg",
-        "synthesizer": "synthesizer.jpg",
-        "bass_guitar": "bass_guitar.jpg",
-        "fender_guitar": "fender_guitar.jpg",
-        "keyboard_synth": "keyboard_synth.jpg",
-    }
-
-    try:
-        if _st_cfg.get_option("server.enableStaticServing"):
-            return {
-                key: f"app/static/images/{fn}"
-                for key, fn in image_filenames.items()
-            }
-    except Exception:
-        pass
-
     image_map = {
         "electric_guitar": "static/images/electric_guitar.jpg",
         "acoustic_guitar": "static/images/acoustic_guitar.jpg",
@@ -546,8 +526,7 @@ def _init_session_state() -> None:
         st.session_state.pending_prompt = None
     if "queued_prompt" not in st.session_state:
         st.session_state.queued_prompt = None
-    if "images_dict" not in st.session_state:
-        st.session_state.images_dict = _load_base64_images()
+    st.session_state.images_dict = _load_base64_images()
     if "chat_view_mode" not in st.session_state or st.session_state.chat_view_mode not in (
         "popup",
         "expanded",
@@ -1906,7 +1885,7 @@ def main() -> None:
     # =========================================================================
     with col_catalog:
         all_products = _fetch_available_products()
-        images_dict = st.session_state.images_dict
+        images_dict = _load_base64_images()
 
         if search_query:
             filtered_products = [
