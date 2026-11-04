@@ -1,0 +1,19 @@
+name: Keep Streamlit Warm
+
+on:
+  schedule:
+    # Run every 10 minutes to prevent Streamlit Community Cloud container sleep
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    name: Ping Streamlit App
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send Keep-Alive HTTP Ping
+        run: |
+          echo "Pinging https://olmir-artefact.streamlit.app/..."
+          STATUS=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 30 https://olmir-artefact.streamlit.app/)
+          echo "Received HTTP status: $STATUS"
