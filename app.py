@@ -14,6 +14,7 @@ import html
 import json
 import os
 import re
+import textwrap
 import time
 import uuid
 from typing import Any
@@ -690,22 +691,24 @@ def _render_telemetry_expander(
     with st.expander(label, expanded=False, key=exp_key, on_change="rerun"):
         # Clean HTML summary grid that never truncates in narrow or wide modes
         st.markdown(
-            f"""
-            <div class="telemetry-summary-grid">
-                <div class="telemetry-kpi-box">
-                    <span class="telemetry-kpi-label">Modelo Utilizado</span>
-                    <span class="telemetry-kpi-val">{html.escape(model_used)}</span>
+            textwrap.dedent(
+                f"""
+                <div class="telemetry-summary-grid">
+                    <div class="telemetry-kpi-box">
+                        <span class="telemetry-kpi-label">Modelo Utilizado</span>
+                        <span class="telemetry-kpi-val">{html.escape(model_used)}</span>
+                    </div>
+                    <div class="telemetry-kpi-box">
+                        <span class="telemetry-kpi-label">Ferramentas Executadas</span>
+                        <span class="telemetry-kpi-val">{len(tool_calls)}</span>
+                    </div>
+                    <div class="telemetry-kpi-box">
+                        <span class="telemetry-kpi-label">Fallbacks no Turno</span>
+                        <span class="telemetry-kpi-val">{len(fallback_events)}</span>
+                    </div>
                 </div>
-                <div class="telemetry-kpi-box">
-                    <span class="telemetry-kpi-label">Ferramentas Executadas</span>
-                    <span class="telemetry-kpi-val">{len(tool_calls)}</span>
-                </div>
-                <div class="telemetry-kpi-box">
-                    <span class="telemetry-kpi-label">Fallbacks no Turno</span>
-                    <span class="telemetry-kpi-val">{len(fallback_events)}</span>
-                </div>
-            </div>
-            """,
+                """
+            ).strip(),
             unsafe_allow_html=True,
         )
 
@@ -715,12 +718,14 @@ def _render_telemetry_expander(
                 tc_name = html.escape(str(tc.get("name", "unknown")))
                 tc_model = html.escape(str(tc.get("model_requested") or model_used))
                 st.markdown(
-                    f"""
-                    <div class="telemetry-tool-header">
-                        <strong>#{idx} <code>{tc_name}</code></strong>
-                        <span>solicitado por <code>{tc_model}</code></span>
-                    </div>
-                    """,
+                    textwrap.dedent(
+                        f"""
+                        <div class="telemetry-tool-header">
+                            <strong>#{idx} <code>{tc_name}</code></strong>
+                            <span>solicitado por <code>{tc_model}</code></span>
+                        </div>
+                        """
+                    ).strip(),
                     unsafe_allow_html=True,
                 )
                 st.caption("Argumentos enviados:")
@@ -749,12 +754,12 @@ def _render_telemetry_expander(
 def _inject_design_system_styles() -> None:
     """Inject deterministic light-mode CSS tokens, popup elevation, and `.st-key-*` rules."""
     st.markdown(
-        """
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-        <style>
-        :root, html, body, .stApp {
+        textwrap.dedent(
+            """
+            <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+            :root, html, body, .stApp {
             color-scheme: light !important;
             --canvas-bg: #F5F3F0;
             --surface-bg: #FFFFFF;
@@ -1620,7 +1625,8 @@ def _inject_design_system_styles() -> None:
             }
         }
         </style>
-        """,
+        """
+        ).strip(),
         unsafe_allow_html=True,
     )
 
@@ -1646,12 +1652,14 @@ def _render_chat_popup_contents(
     )
     with col_hdr_title:
         st.markdown(
-            """
-            <div class="chat-header-minimal">
-                <span class="chat-online-dot"></span>
-                <span class="chat-header-brand">Maestro AI</span>
-            </div>
-            """,
+            textwrap.dedent(
+                """
+                <div class="chat-header-minimal">
+                    <span class="chat-online-dot"></span>
+                    <span class="chat-header-brand">Maestro AI</span>
+                </div>
+                """
+            ).strip(),
             unsafe_allow_html=True,
         )
     with col_hdr_clear:
@@ -1969,7 +1977,7 @@ def main() -> None:
                         </div>
                     </div>
                     """
-                    st.markdown(card_markup, unsafe_allow_html=True)
+                    st.markdown(textwrap.dedent(card_markup).strip(), unsafe_allow_html=True)
 
                     prompt_for_card = (
                         f"Gostaria de saber mais sobre o instrumento {card_data['full_name']}, "
