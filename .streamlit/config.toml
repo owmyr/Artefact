@@ -1,8 +1,8 @@
 [server]
 headless = true
-enableStaticServing = true
 runOnSave = false
-maxUploadSize = 50
+enableCORS = false
+enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
